@@ -6,8 +6,5 @@ export async function createSocketIoRedisAdapter() {
   const pubClient: Redis = createRedisClient();
   const subClient: Redis = pubClient.duplicate();
 
-  await Promise.all([pubClient.connect(), subClient.connect()]);
-
   return createAdapter(pubClient, subClient);
 }
-

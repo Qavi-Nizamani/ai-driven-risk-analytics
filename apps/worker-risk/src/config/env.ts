@@ -17,11 +17,11 @@ export function getMongoUri(): string {
   return uri;
 }
 
-export function getRiskQueueName(): string {
-  return process.env.ANOMALY_QUEUE_NAME ?? "risk-scoring";
+export function getAnomalyQueueName(): string {
+  return process.env.ANOMALY_QUEUE_NAME ?? "anomaly-detection";
 }
 
 export function getRedisStreamName(): string {
-  return process.env.REDIS_STREAM_NAME ?? "installment-events";
+  return process.env.REDIS_STREAM_NAME ?? "platform-events";
 }
 

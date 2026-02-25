@@ -1,9 +1,10 @@
 import type { CompilerOptions } from "typescript";
+import { ModuleKind, ModuleResolutionKind, ScriptTarget } from "typescript";
 
 export const baseTsConfig: CompilerOptions = {
-  target: "ES2020",
-  module: "NodeNext",
-  moduleResolution: "NodeNext",
+  target: ScriptTarget.ES2020,
+  module: ModuleKind.NodeNext,
+  moduleResolution: ModuleResolutionKind.NodeNext,
   strict: true,
   esModuleInterop: true,
   forceConsistentCasingInFileNames: true,

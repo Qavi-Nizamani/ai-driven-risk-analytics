@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import { Types } from "mongoose";
 import { InstallmentModel, type InstallmentDocument } from "../models/Installment";
 import { CustomerModel } from "../models/Customer";
@@ -10,7 +10,7 @@ import {
 } from "../events/publisher";
 import { enqueueRiskJob } from "../queues/riskQueue";
 
-export const installmentsRouter = Router();
+export const installmentsRouter: ExpressRouter = Router();
 
 function validateObjectId(id: string): boolean {
   return Types.ObjectId.isValid(id);

@@ -1,6 +1,6 @@
 import type { Linter } from "eslint";
 
-export const baseEslintConfig: Linter.Config = {
+export const baseEslintConfig: Linter.Config | any = {
   env: {
     es2021: true,
     node: true

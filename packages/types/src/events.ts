@@ -1,6 +1,6 @@
 import { EventSeverity, IncidentStatus } from "./risk";
 
-export interface EventPayload<TData extends Record<string, unknown> = Record<string, unknown>> {
+export interface EventPayload<TData extends object = Record<string, unknown>> {
   eventId: string;
   type: string;
   projectId: string;

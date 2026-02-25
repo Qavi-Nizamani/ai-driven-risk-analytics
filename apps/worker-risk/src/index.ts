@@ -2,21 +2,26 @@ import http from "node:http";
 import { Worker } from "bullmq";
 import { createLogger } from "@risk-engine/logger";
 import { getBullMqConnectionOptions, getRedisClient } from "@risk-engine/redis";
-import { InstallmentStatus, RiskLevel } from "@risk-engine/types";
+import { EventSeverity, IncidentStatus } from "@risk-engine/types";
 import { connectMongo } from "./db/mongoose";
-import { CustomerModel } from "./models/Customer";
-import { InstallmentModel } from "./models/Installment";
-import { getRedisStreamName, getRiskQueueName, getWorkerPort } from "./config/env";
+import { getAnomalyQueueName, getWorkerPort } from "./config/env";
+import { EventModel } from "./models/Event";
+import { IncidentModel } from "./models/Incident";
+// import { getRedisStreamName } from "./config/env";
 import {
-  emitRiskUpdated,
+  emitAnomalyDetected,
+  emitIncidentCreated,
   type RedisStreamClient
 } from "@risk-engine/events";
 
-interface RiskJobPayload {
-  customerId: string;
+interface AnomalyJobPayload {
+  projectId: string;
+  eventId: string;
+  severity: EventSeverity;
+  timestamp: number;
 }
 
-const logger = createLogger("worker-risk");
+const logger = createLogger("worker-anomaly");
 
 function startHealthServer(): void {
   const port = getWorkerPort();
@@ -26,7 +31,7 @@ function startHealthServer(): void {
     res.end(
       JSON.stringify({
         status: "ok",
-        service: "worker-risk",
+        service: "worker-anomaly",
         timestamp: new Date().toISOString()
       })
     );
@@ -38,78 +43,75 @@ function startHealthServer(): void {
 }
 
 async function runWorker(): Promise<void> {
-  const queueName = getRiskQueueName();
+  const queueName = getAnomalyQueueName();
   const connection = getBullMqConnectionOptions();
-  const streamName = getRedisStreamName();
+  // const streamName = getRedisStreamName();
   const redisClient = getRedisClient();
   const streamClient: RedisStreamClient = redisClient as unknown as RedisStreamClient;
 
-  const worker = new Worker<RiskJobPayload>(
+  const worker = new Worker<AnomalyJobPayload>(
     queueName,
     async (job) => {
-      const { customerId } = job.data;
+      const { projectId, timestamp } = job.data;
 
-      const installments = await InstallmentModel.find({ customerId }).exec();
-      const total = installments.length;
+      const windowMs = 60 * 1000;
+      const windowStart = new Date(timestamp - windowMs);
 
-      if (total === 0) {
-        logger.info({ customerId }, "No installments found for customer, skipping risk update");
+      const recentErrors = await EventModel.find({
+        projectId,
+        severity: EventSeverity.ERROR,
+        timestamp: { $gte: windowStart, $lte: new Date(timestamp) }
+      })
+        .sort({ timestamp: -1 })
+        .exec();
+
+      const errorCount = recentErrors.length;
+
+      if (errorCount <= 10) {
+        logger.info({ projectId, errorCount }, "Error rate below anomaly threshold");
         return;
       }
 
-      const lateCount = installments.filter(
-        (installment) => installment.status === InstallmentStatus.LATE
-      ).length;
+      await emitAnomalyDetected(streamClient, {
+        projectId,
+        errorCount,
+        windowSeconds: 60
+      });
 
-      const riskScore = (lateCount / total) * 100;
+      const relatedEvents = recentErrors.slice(0, 10);
 
-      let riskLevel: RiskLevel;
-      if (riskScore <= 20) {
-        riskLevel = RiskLevel.LOW;
-      } else if (riskScore <= 50) {
-        riskLevel = RiskLevel.MEDIUM;
-      } else {
-        riskLevel = RiskLevel.HIGH;
-      }
+      const incident = await IncidentModel.create({
+        projectId,
+        status: IncidentStatus.OPEN,
+        severity: EventSeverity.ERROR,
+        relatedEventIds: relatedEvents.map((e) => e._id),
+        summary: `High error rate detected: ${errorCount} ERROR events in last 60 seconds.`
+      });
 
-      const customer = await CustomerModel.findByIdAndUpdate(
-        customerId,
-        {
-          riskScore,
-          riskLevel
-        },
-        { new: true }
-      ).exec();
-
-      if (!customer) {
-        logger.warn({ customerId }, "Customer not found when updating risk");
-        return;
-      }
-
-      await emitRiskUpdated(
-        streamClient,
-        {
-          customerId,
-          riskScore,
-          riskLevel
-        },
-        streamName
-      );
+      await emitIncidentCreated(streamClient, {
+        incidentId: incident.id,
+        projectId,
+        status: incident.status,
+        severity: incident.severity,
+        summary: incident.summary
+      });
 
       logger.info(
-        { customerId, lateCount, total, riskScore, riskLevel },
-        "Updated customer risk"
+        { projectId, incidentId: incident.id, errorCount },
+        "Created incident from anomaly"
       );
     },
-    { connection }
+    {
+      connection
+    }
   );
 
   worker.on("failed", (job, error) => {
-    logger.error({ jobId: job?.id, error }, "Risk worker job failed");
+    logger.error({ jobId: job?.id, error }, "Anomaly worker job failed");
   });
 
   worker.on("completed", (job) => {
-    logger.info({ jobId: job.id }, "Risk worker job completed");
+    logger.info({ jobId: job.id }, "Anomaly worker job completed");
   });
 }
 
@@ -120,6 +122,7 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((error) => {
+  console.log(error);
   logger.error({ error }, "Worker failed to start");
   process.exit(1);
 });

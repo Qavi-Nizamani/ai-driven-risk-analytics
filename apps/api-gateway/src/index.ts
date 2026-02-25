@@ -3,8 +3,8 @@ import cors from "cors";
 import { createLogger } from "@risk-engine/logger";
 import { connectMongo } from "./db/mongoose";
 import { getApiGatewayPort } from "./config/env";
-import { customersRouter } from "./routes/customers";
-import { installmentsRouter } from "./routes/installments";
+import { ProjectModel } from "./models/Project";
+import { IncidentModel } from "./models/Incident";
 
 const logger = createLogger("api-gateway");
 
@@ -24,8 +24,65 @@ async function bootstrap(): Promise<void> {
     });
   });
 
-  app.use(customersRouter);
-  app.use(installmentsRouter);
+  app.post("/projects", async (req, res, next) => {
+    try {
+      const { name } = req.body as { name?: string };
+
+      if (!name) {
+        return res.status(400).json({ message: "name is required" });
+      }
+
+      const project = await ProjectModel.create({ name });
+
+      return res.status(201).json({
+        id: project.id,
+        name: project.name,
+        createdAt: project.createdAt.toISOString(),
+        updatedAt: project.updatedAt.toISOString()
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/projects", async (_req, res, next) => {
+    try {
+      const projects = await ProjectModel.find().exec();
+      return res.json(
+        projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+          createdAt: project.createdAt.toISOString(),
+          updatedAt: project.updatedAt.toISOString()
+        }))
+      );
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/incidents/:projectId", async (req, res, next) => {
+    try {
+      const { projectId } = req.params;
+
+      const incidents = await IncidentModel.find({ projectId }).exec();
+
+      return res.json(
+        incidents.map((incident) => ({
+          id: incident.id,
+          projectId: incident.projectId.toHexString(),
+          status: incident.status,
+          severity: incident.severity,
+          relatedEventIds: incident.relatedEventIds.map((id) => id.toHexString()),
+          summary: incident.summary,
+          createdAt: incident.createdAt.toISOString(),
+          updatedAt: incident.updatedAt.toISOString()
+        }))
+      );
+    } catch (err) {
+      next(err);
+    }
+  });
 
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.use(async (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -41,6 +98,7 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((error) => {
+  console.log(error); 
   logger.error({ error }, "Failed to start API gateway");
   process.exit(1);
 });

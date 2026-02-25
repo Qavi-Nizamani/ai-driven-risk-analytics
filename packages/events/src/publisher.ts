@@ -16,7 +16,7 @@ import {
 
 const DEFAULT_STREAM_NAME = "platform-events";
 
-async function appendEvent<TData extends Record<string, unknown>>(
+async function appendEvent<TData extends object>(
   client: RedisStreamClient,
   payload: EventPayload<TData>,
   streamName: string = DEFAULT_STREAM_NAME

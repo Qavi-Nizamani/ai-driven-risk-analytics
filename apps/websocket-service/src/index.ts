@@ -4,7 +4,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { createLogger } from "@risk-engine/logger";
 import { createSocketIoRedisAdapter } from "@risk-engine/redis";
 import { getWebsocketPort } from "./config/env";
-import { startRiskUpdatedStreamListener } from "./riskStreamListener";
+import { startIncidentStreamListener } from "./riskStreamListener";
 
 const logger = createLogger("websocket-service");
 
@@ -32,15 +32,15 @@ async function bootstrap(): Promise<void> {
   io.on("connection", (socket) => {
     logger.info({ socketId: socket.id }, "Client connected");
 
-    socket.on("subscribe_to_customer", (payload: { customerId?: string }) => {
-      const customerId = payload.customerId;
+    socket.on("subscribe_to_project", (payload: { projectId?: string }) => {
+      const projectId = payload.projectId;
 
-      if (!customerId) {
+      if (!projectId) {
         return;
       }
 
-      socket.join(customerId);
-      logger.info({ socketId: socket.id, customerId }, "Client subscribed to customer room");
+      socket.join(projectId);
+      logger.info({ socketId: socket.id, projectId }, "Client subscribed to project room");
     });
 
     socket.on("disconnect", () => {
@@ -48,7 +48,7 @@ async function bootstrap(): Promise<void> {
     });
   });
 
-  await startRiskUpdatedStreamListener(io);
+  await startIncidentStreamListener(io);
 
   const port = getWebsocketPort();
 
@@ -58,6 +58,7 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((error) => {
+  console.log(error); 
   logger.error({ error }, "Failed to start WebSocket service");
   process.exit(1);
 });
