@@ -1,13 +1,11 @@
 import http from "node:http";
+import { and, eq, gte, lte, desc } from "drizzle-orm";
 import { Worker } from "bullmq";
 import { createLogger } from "@risk-engine/logger";
 import { getBullMqConnectionOptions, getRedisClient } from "@risk-engine/redis";
 import { EventSeverity, IncidentStatus } from "@risk-engine/types";
-import { connectMongo } from "./db/mongoose";
-import { getAnomalyQueueName, getWorkerPort } from "./config/env";
-import { EventModel } from "./models/Event";
-import { IncidentModel } from "./models/Incident";
-// import { getRedisStreamName } from "./config/env";
+import { getDb, events, incidents } from "@risk-engine/db";
+import { getAnomalyQueueName, getDatabaseUrl, getWorkerPort } from "./config/env";
 import {
   emitAnomalyDetected,
   emitIncidentCreated,
@@ -45,9 +43,9 @@ function startHealthServer(): void {
 async function runWorker(): Promise<void> {
   const queueName = getAnomalyQueueName();
   const connection = getBullMqConnectionOptions();
-  // const streamName = getRedisStreamName();
   const redisClient = getRedisClient();
   const streamClient: RedisStreamClient = redisClient as unknown as RedisStreamClient;
+  const db = getDb(getDatabaseUrl());
 
   const worker = new Worker<AnomalyJobPayload>(
     queueName,
@@ -57,13 +55,18 @@ async function runWorker(): Promise<void> {
       const windowMs = 60 * 1000;
       const windowStart = new Date(timestamp - windowMs);
 
-      const recentErrors = await EventModel.find({
-        projectId,
-        severity: EventSeverity.ERROR,
-        timestamp: { $gte: windowStart, $lte: new Date(timestamp) }
-      })
-        .sort({ timestamp: -1 })
-        .exec();
+      const recentErrors = await db
+        .select()
+        .from(events)
+        .where(
+          and(
+            eq(events.projectId, projectId),
+            eq(events.severity, EventSeverity.ERROR),
+            gte(events.timestamp, windowStart),
+            lte(events.timestamp, new Date(timestamp))
+          )
+        )
+        .orderBy(desc(events.timestamp));
 
       const errorCount = recentErrors.length;
 
@@ -80,19 +83,22 @@ async function runWorker(): Promise<void> {
 
       const relatedEvents = recentErrors.slice(0, 10);
 
-      const incident = await IncidentModel.create({
-        projectId,
-        status: IncidentStatus.OPEN,
-        severity: EventSeverity.ERROR,
-        relatedEventIds: relatedEvents.map((e) => e._id),
-        summary: `High error rate detected: ${errorCount} ERROR events in last 60 seconds.`
-      });
+      const [incident] = await db
+        .insert(incidents)
+        .values({
+          projectId,
+          status: IncidentStatus.OPEN,
+          severity: EventSeverity.ERROR,
+          relatedEventIds: relatedEvents.map((e) => e.id),
+          summary: `High error rate detected: ${errorCount} ERROR events in last 60 seconds.`
+        })
+        .returning();
 
       await emitIncidentCreated(streamClient, {
         incidentId: incident.id,
         projectId,
-        status: incident.status,
-        severity: incident.severity,
+        status: incident.status as IncidentStatus,
+        severity: incident.severity as EventSeverity,
         summary: incident.summary
       });
 
@@ -116,7 +122,6 @@ async function runWorker(): Promise<void> {
 }
 
 async function bootstrap(): Promise<void> {
-  await connectMongo();
   startHealthServer();
   await runWorker();
 }
@@ -126,4 +131,3 @@ bootstrap().catch((error) => {
   logger.error({ error }, "Worker failed to start");
   process.exit(1);
 });
-

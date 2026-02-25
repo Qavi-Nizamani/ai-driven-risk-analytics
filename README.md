@@ -1,6 +1,6 @@
 # AI-Powered Realtime Customer Risk Engine (Phase 1)
 
-Monorepo for an event-driven, microservices-based customer risk engine using Turborepo, MERN, Redis Streams, BullMQ, and WebSockets.
+Monorepo for an event-driven, microservices-based customer risk engine using Turborepo, PERN, Redis Streams, BullMQ, and WebSockets.
 
 ## Apps
 

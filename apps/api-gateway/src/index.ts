@@ -1,10 +1,9 @@
 import express from "express";
 import cors from "cors";
+import { eq } from "drizzle-orm";
 import { createLogger } from "@risk-engine/logger";
-import { connectMongo } from "./db/mongoose";
-import { getApiGatewayPort, getRedisStreamName } from "./config/env";
-import { ProjectModel } from "./models/Project";
-import { IncidentModel } from "./models/Incident";
+import { getDb, projects, incidents } from "@risk-engine/db";
+import { getApiGatewayPort, getDatabaseUrl, getRedisStreamName } from "./config/env";
 import { createRedisClient } from "@risk-engine/redis";
 import { INCIDENT_CREATED } from "@risk-engine/events";
 
@@ -13,7 +12,7 @@ const redis = createRedisClient();
 const streamName = getRedisStreamName();
 
 async function bootstrap(): Promise<void> {
-  await connectMongo();
+  const db = getDb(getDatabaseUrl());
 
   const app = express();
 
@@ -36,7 +35,7 @@ async function bootstrap(): Promise<void> {
         return res.status(400).json({ message: "name is required" });
       }
 
-      const project = await ProjectModel.create({ name });
+      const [project] = await db.insert(projects).values({ name }).returning();
 
       return res.status(201).json({
         id: project.id,
@@ -51,9 +50,9 @@ async function bootstrap(): Promise<void> {
 
   app.get("/projects", async (_req, res, next) => {
     try {
-      const projects = await ProjectModel.find().exec();
+      const rows = await db.select().from(projects);
       return res.json(
-        projects.map((project) => ({
+        rows.map((project) => ({
           id: project.id,
           name: project.name,
           createdAt: project.createdAt.toISOString(),
@@ -74,16 +73,20 @@ async function bootstrap(): Promise<void> {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
-      const incident = await IncidentModel.create({
-        projectId,
-        status,
-        severity,
-        relatedEventIds: relatedEventIds ?? [],
-        summary,
-      });
+      const [incident] = await db
+        .insert(incidents)
+        .values({
+          projectId,
+          status,
+          severity,
+          relatedEventIds: relatedEventIds ?? [],
+          summary,
+        })
+        .returning();
+
       const payload = {
         id: incident.id,
-        projectId: incident.projectId.toString(),
+        projectId: incident.projectId,
         status: incident.status,
         severity: incident.severity,
         summary: incident.summary,
@@ -112,17 +115,18 @@ async function bootstrap(): Promise<void> {
     try {
       const { projectId } = req.params;
 
-      const incidents = await IncidentModel.find({ projectId }).exec();
+      const rows = await db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.projectId, projectId));
 
       return res.json(
-        incidents.map((incident) => ({
+        rows.map((incident) => ({
           id: incident.id,
-          projectId: incident.projectId.toHexString(),
+          projectId: incident.projectId,
           status: incident.status,
           severity: incident.severity,
-          relatedEventIds: incident.relatedEventIds.map((id) =>
-            id.toHexString(),
-          ),
+          relatedEventIds: incident.relatedEventIds,
           summary: incident.summary,
           createdAt: incident.createdAt.toISOString(),
           updatedAt: incident.updatedAt.toISOString(),

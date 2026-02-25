@@ -4,10 +4,11 @@ import { createLogger } from "@risk-engine/logger";
 import { getRedisClient } from "@risk-engine/redis";
 import type { RedisStreamClient } from "@risk-engine/events";
 import { emitEventIngested } from "@risk-engine/events";
-import { EventModel } from "../models/Event";
+import { getDb, events } from "@risk-engine/db";
+import { getDatabaseUrl } from "../config/env";
 import { enqueueAnomalyJob } from "../queues/anomalyQueue";
 
-export const ingestRouter = Router();
+export const ingestRouter: ReturnType<typeof Router> = Router();
 
 const logger = createLogger("ingestion-service:ingest");
 
@@ -39,15 +40,16 @@ ingestRouter.post("/ingest/:projectId", async (req, res, next) => {
     }
 
     const now = new Date();
+    const db = getDb(getDatabaseUrl());
 
-    const eventDoc = await EventModel.create({
+    const [eventDoc] = await db.insert(events).values({
       projectId,
       source,
       type,
-      severity,
+      severity: severity as "INFO" | "WARN" | "ERROR",
       payload: (payload ?? {}) as Record<string, unknown>,
       timestamp: now
-    });
+    }).returning();
 
     const timestampMs = eventDoc.timestamp.getTime();
 
@@ -82,4 +84,3 @@ ingestRouter.post("/ingest/:projectId", async (req, res, next) => {
     next(error);
   }
 });
-

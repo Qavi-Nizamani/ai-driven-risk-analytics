@@ -3,14 +3,14 @@ import { getNumberEnv } from "@risk-engine/utils";
 
 dotenv.config();
 
-export function getMongoUri(): string {
-  const uri = process.env.MONGO_URI;
+export function getDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL;
 
-  if (!uri) {
-    throw new Error("MONGO_URI is required");
+  if (!url) {
+    throw new Error("DATABASE_URL is required");
   }
 
-  return uri;
+  return url;
 }
 
 export function getIngestionPort(): number {
@@ -20,4 +20,3 @@ export function getIngestionPort(): number {
 export function getAnomalyQueueName(): string {
   return process.env.ANOMALY_QUEUE_NAME ?? "anomaly-detection";
 }
-

@@ -61,10 +61,10 @@ export async function startIncidentStreamListener(io: SocketIOServer): Promise<v
           "GROUP",
           groupName,
           consumerName,
-          "BLOCK",
-          5000,
           "COUNT",
           10,
+          "BLOCK",
+          5000,
           "STREAMS",
           streamName,
           ">"

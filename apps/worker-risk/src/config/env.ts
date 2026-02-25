@@ -7,14 +7,14 @@ export function getWorkerPort(): number {
   return getNumberEnv("WORKER_PORT", 4002);
 }
 
-export function getMongoUri(): string {
-  const uri = process.env.MONGO_URI;
+export function getDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL;
 
-  if (!uri) {
-    throw new Error("MONGO_URI is required");
+  if (!url) {
+    throw new Error("DATABASE_URL is required");
   }
 
-  return uri;
+  return url;
 }
 
 export function getAnomalyQueueName(): string {
@@ -24,4 +24,3 @@ export function getAnomalyQueueName(): string {
 export function getRedisStreamName(): string {
   return process.env.REDIS_STREAM_NAME ?? "platform-events";
 }
-

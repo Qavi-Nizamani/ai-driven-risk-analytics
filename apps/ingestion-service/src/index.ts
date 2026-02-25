@@ -1,14 +1,11 @@
 import express from "express";
 import { createLogger } from "@risk-engine/logger";
-import { connectMongo } from "./db/mongoose";
 import { getIngestionPort } from "./config/env";
 import { ingestRouter } from "./routes/ingest";
 
 const logger = createLogger("ingestion-service");
 
 async function bootstrap(): Promise<void> {
-  await connectMongo();
-
   const app = express();
 
   app.use(express.json());
@@ -40,4 +37,3 @@ bootstrap().catch((error) => {
   logger.error({ error }, "Failed to start ingestion service");
   process.exit(1);
 });
-

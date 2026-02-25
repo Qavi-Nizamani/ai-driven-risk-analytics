@@ -25,7 +25,7 @@ function getWebsocketUrl(): string {
   return process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:4001";
 }
 
-const PROJECT_ID = "699f18261b0953014211250d";
+const PROJECT_ID = "ba26a0ea-42bc-4f07-832a-3b3126e0de16";
 
 export default function DashboardPage() {
   const [events, setEvents] = useState<EventPayload[]>([]);

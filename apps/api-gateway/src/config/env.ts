@@ -7,21 +7,20 @@ export function getApiGatewayPort(): number {
   return getNumberEnv("API_GATEWAY_PORT", 4000);
 }
 
-export function getMongoUri(): string {
-  const uri = process.env.MONGO_URI;
+export function getDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL;
 
-  if (!uri) {
-    throw new Error("MONGO_URI is required");
+  if (!url) {
+    throw new Error("DATABASE_URL is required");
   }
 
-  return uri;
+  return url;
 }
 
 export function getRedisStreamName(): string {
-  return process.env.REDIS_STREAM_NAME ?? "installment-events";
+  return process.env.REDIS_STREAM_NAME ?? "platform-events";
 }
 
 export function getRiskQueueName(): string {
   return process.env.ANOMALY_QUEUE_NAME ?? "risk-scoring";
 }
-

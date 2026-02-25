@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(net stop postgresql*)",
+      "Bash(sc query type= all state= all)"
+    ]
+  }
+}

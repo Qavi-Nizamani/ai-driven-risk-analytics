@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install)",
+      "Bash(pnpm --filter api-gateway type-check)",
+      "Bash(pnpm --filter @risk-engine/db build)",
+      "Bash(npx tsc --version)",
+      "Bash(pnpm --filter \"@risk-engine/*\" build)",
+      "Bash(pnpm --filter api-gateway --filter ingestion-service --filter worker-risk type-check)",
+      "Bash(pnpm --filter websocket-service type-check)",
+      "Bash(docker compose down -v)",
+      "Bash(docker compose up -d postgres)",
+      "Bash(docker compose exec postgres pg_isready -U postgres)",
+      "Bash(pnpm --filter @risk-engine/db db:migrate)",
+      "Bash(pnpm --filter @risk-engine/db db:generate)",
+      "Bash(docker compose -f /d/projects/personal/ai-driven-risk-analytics/docker-compose.yml exec postgres psql -U postgres -c \"\\\\l\")"
+    ]
+  }
+}

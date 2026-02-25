@@ -16,6 +16,7 @@
     "baseUrl": ".",
     "paths": {
       "@risk-engine/config": ["packages/config/src"],
+      "@risk-engine/db": ["packages/db/src"],
       "@risk-engine/types": ["packages/types/src"],
       "@risk-engine/events": ["packages/events/src"],
       "@risk-engine/redis": ["packages/redis/src"],
