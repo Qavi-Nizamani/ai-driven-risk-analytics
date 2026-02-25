@@ -2,11 +2,15 @@ import express from "express";
 import cors from "cors";
 import { createLogger } from "@risk-engine/logger";
 import { connectMongo } from "./db/mongoose";
-import { getApiGatewayPort } from "./config/env";
+import { getApiGatewayPort, getRedisStreamName } from "./config/env";
 import { ProjectModel } from "./models/Project";
 import { IncidentModel } from "./models/Incident";
+import { createRedisClient } from "@risk-engine/redis";
+import { INCIDENT_CREATED } from "@risk-engine/events";
 
 const logger = createLogger("api-gateway");
+const redis = createRedisClient();
+const streamName = getRedisStreamName();
 
 async function bootstrap(): Promise<void> {
   await connectMongo();
@@ -20,7 +24,7 @@ async function bootstrap(): Promise<void> {
     res.json({
       status: "ok",
       service: "api-gateway",
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   });
 
@@ -38,7 +42,7 @@ async function bootstrap(): Promise<void> {
         id: project.id,
         name: project.name,
         createdAt: project.createdAt.toISOString(),
-        updatedAt: project.updatedAt.toISOString()
+        updatedAt: project.updatedAt.toISOString(),
       });
     } catch (err) {
       next(err);
@@ -53,9 +57,52 @@ async function bootstrap(): Promise<void> {
           id: project.id,
           name: project.name,
           createdAt: project.createdAt.toISOString(),
-          updatedAt: project.updatedAt.toISOString()
-        }))
+          updatedAt: project.updatedAt.toISOString(),
+        })),
       );
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post("/incidents", async (req, res, next) => {
+    try {
+      const { projectId, status, severity, relatedEventIds, summary } =
+        req.body;
+
+      if (!projectId || !status || !severity || !summary) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const incident = await IncidentModel.create({
+        projectId,
+        status,
+        severity,
+        relatedEventIds: relatedEventIds ?? [],
+        summary,
+      });
+      const payload = {
+        id: incident.id,
+        projectId: incident.projectId.toString(),
+        status: incident.status,
+        severity: incident.severity,
+        summary: incident.summary,
+        createdAt: incident.createdAt.toISOString(),
+        updatedAt: incident.updatedAt.toISOString(),
+      };
+
+      await redis.xadd(
+        streamName,
+        "*",
+        "type",
+        INCIDENT_CREATED,
+        "data",
+        JSON.stringify(payload),
+      );
+
+      return res.status(201).json({
+        id: incident.id,
+      });
     } catch (err) {
       next(err);
     }
@@ -73,11 +120,13 @@ async function bootstrap(): Promise<void> {
           projectId: incident.projectId.toHexString(),
           status: incident.status,
           severity: incident.severity,
-          relatedEventIds: incident.relatedEventIds.map((id) => id.toHexString()),
+          relatedEventIds: incident.relatedEventIds.map((id) =>
+            id.toHexString(),
+          ),
           summary: incident.summary,
           createdAt: incident.createdAt.toISOString(),
-          updatedAt: incident.updatedAt.toISOString()
-        }))
+          updatedAt: incident.updatedAt.toISOString(),
+        })),
       );
     } catch (err) {
       next(err);
@@ -85,10 +134,17 @@ async function bootstrap(): Promise<void> {
   });
 
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  app.use(async (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    logger.error({ err }, "Unhandled error in API gateway");
-    res.status(500).json({ message: "Internal server error" });
-  });
+  app.use(
+    async (
+      err: unknown,
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction,
+    ) => {
+      logger.error({ err }, "Unhandled error in API gateway");
+      res.status(500).json({ message: "Internal server error" });
+    },
+  );
 
   const port = getApiGatewayPort();
 
@@ -98,8 +154,7 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((error) => {
-  console.log(error); 
+  console.log(error);
   logger.error({ error }, "Failed to start API gateway");
   process.exit(1);
 });
-

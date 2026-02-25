@@ -1,10 +1,10 @@
 import { Schema, model, type Document, Types } from "mongoose";
-import { EventSeverity, IncidentStatus } from "@risk-engine/types";
+import { IncidentSeverity, IncidentStatus } from "@risk-engine/types";
 
 export interface IncidentDocument extends Document {
   projectId: Types.ObjectId;
   status: IncidentStatus;
-  severity: EventSeverity;
+  severity: IncidentSeverity;
   relatedEventIds: Types.ObjectId[];
   summary: string;
   createdAt: Date;
@@ -16,35 +16,37 @@ const incidentSchema = new Schema<IncidentDocument>(
     projectId: {
       type: Schema.Types.ObjectId,
       ref: "Project",
-      required: true
+      required: true,
     },
     status: {
       type: String,
       required: true,
       enum: Object.values(IncidentStatus),
-      default: IncidentStatus.OPEN
+      default: IncidentStatus.OPEN,
     },
     severity: {
       type: String,
       required: true,
-      enum: Object.values(EventSeverity)
+      enum: Object.values(IncidentSeverity),
     },
     relatedEventIds: [
       {
         type: Schema.Types.ObjectId,
         ref: "Event",
-        required: true
-      }
+        required: true,
+      },
     ],
     summary: {
       type: String,
-      required: true
-    }
+      required: true,
+    },
   },
   {
-    timestamps: true
-  }
+    timestamps: true,
+  },
 );
 
-export const IncidentModel = model<IncidentDocument>("Incident", incidentSchema);
-
+export const IncidentModel = model<IncidentDocument>(
+  "Incident",
+  incidentSchema,
+);

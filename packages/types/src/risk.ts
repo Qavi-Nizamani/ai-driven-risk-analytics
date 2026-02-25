@@ -1,11 +1,17 @@
 export enum EventSeverity {
   INFO = "INFO",
   WARN = "WARN",
-  ERROR = "ERROR"
+  ERROR = "ERROR",
+}
+
+export enum IncidentSeverity {
+  LOW = "LOW",
+  MEDIUM = "MEDIUM",
+  HIGH = "HIGH",
+  CRITICAL = "CRITICAL",
 }
 
 export enum IncidentStatus {
   OPEN = "OPEN",
-  RESOLVED = "RESOLVED"
+  RESOLVED = "RESOLVED",
 }
-
