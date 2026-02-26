@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { eq } from "drizzle-orm";
 import { getDb, apiKeys, projects, organizations } from "@risk-engine/db";
 import type { ApiKey, Organization, Project } from "@risk-engine/db";
-import { getDatabaseUrl } from "../config/env";
 
 export interface AuthContext {
   organization: Organization;
@@ -20,46 +19,40 @@ declare global {
   }
 }
 
-export async function authenticate(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  const rawKey = req.headers["x-api-key"];
+type Db = ReturnType<typeof getDb>;
 
-  if (!rawKey || typeof rawKey !== "string") {
-    res.status(401).json({ message: "X-Api-Key header is required" });
-    return;
-  }
+export function createAuthMiddleware(db: Db): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const rawKey = req.headers["x-api-key"];
 
-  const keyHash = createHash("sha256").update(rawKey).digest("hex");
-  const db = getDb(getDatabaseUrl());
+    if (!rawKey || typeof rawKey !== "string") {
+      res.status(401).json({ message: "X-Api-Key header is required" });
+      return;
+    }
 
-  const result = await db
-    .select({
-      apiKey: apiKeys,
-      project: projects,
-      organization: organizations,
-    })
-    .from(apiKeys)
-    .innerJoin(projects, eq(apiKeys.projectId, projects.id))
-    .innerJoin(organizations, eq(projects.organizationId, organizations.id))
-    .where(eq(apiKeys.keyHash, keyHash))
-    .limit(1);
+    const keyHash = createHash("sha256").update(rawKey).digest("hex");
 
-  if (!result.length) {
-    res.status(401).json({ message: "Invalid API key" });
-    return;
-  }
+    const result = await db
+      .select({ apiKey: apiKeys, project: projects, organization: organizations })
+      .from(apiKeys)
+      .innerJoin(projects, eq(apiKeys.projectId, projects.id))
+      .innerJoin(organizations, eq(projects.organizationId, organizations.id))
+      .where(eq(apiKeys.keyHash, keyHash))
+      .limit(1);
 
-  const { apiKey, project, organization } = result[0];
+    if (!result.length) {
+      res.status(401).json({ message: "Invalid API key" });
+      return;
+    }
 
-  // Update lastUsedAt in the background (fire-and-forget)
-  void db
-    .update(apiKeys)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(apiKeys.id, apiKey.id));
+    const { apiKey, project, organization } = result[0];
 
-  req.auth = { organization, project, apiKey };
-  next();
+    void db
+      .update(apiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiKeys.id, apiKey.id));
+
+    req.auth = { organization, project, apiKey };
+    next();
+  };
 }

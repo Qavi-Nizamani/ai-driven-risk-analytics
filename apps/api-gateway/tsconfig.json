@@ -9,6 +9,7 @@
   "include": ["src"],
   "references": [
     { "path": "../../packages/db" },
+    { "path": "../../packages/http" },
     { "path": "../../packages/types" },
     { "path": "../../packages/events" },
     { "path": "../../packages/redis" },
@@ -16,4 +17,3 @@
     { "path": "../../packages/utils" }
   ]
 }
-

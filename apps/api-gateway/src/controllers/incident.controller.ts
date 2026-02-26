@@ -1,0 +1,43 @@
+import type { Request, Response } from "express";
+import type { IncidentService } from "../services/incident.service";
+
+export class IncidentController {
+  constructor(private readonly incidentService: IncidentService) {}
+
+  create = async (req: Request, res: Response): Promise<void> => {
+    const { projectId, status, severity, summary } = req.body as {
+      projectId: string;
+      status: "OPEN" | "INVESTIGATING" | "RESOLVED";
+      severity: string;
+      summary: string;
+    };
+
+    const incident = await this.incidentService.create(req.auth.organization.id, {
+      projectId,
+      status,
+      severity,
+      summary,
+    });
+
+    res.status(201).json({ id: incident.id });
+  };
+
+  list = async (req: Request, res: Response): Promise<void> => {
+    const { project_id } = req.query as { project_id?: string };
+
+    const incidents = await this.incidentService.list(req.auth.organization.id, project_id);
+
+    res.json(
+      incidents.map((i) => ({
+        id: i.id,
+        organizationId: i.organizationId,
+        projectId: i.projectId,
+        status: i.status,
+        severity: i.severity,
+        summary: i.summary,
+        createdAt: i.createdAt.toISOString(),
+        updatedAt: i.updatedAt.toISOString(),
+      })),
+    );
+  };
+}

@@ -1,25 +1,86 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { eq, and } from "drizzle-orm";
 import { createLogger } from "@risk-engine/logger";
-import { getDb, projects, incidents } from "@risk-engine/db";
-import { getApiGatewayPort, getDatabaseUrl, getRedisStreamName, getAllowedOrigin } from "./config/env";
+import { getDb } from "@risk-engine/db";
 import { createRedisClient } from "@risk-engine/redis";
-import { INCIDENT_CREATED } from "@risk-engine/events";
-import { authenticate } from "./middleware/authenticate";
-import { organizationsRouter } from "./routes/organizations";
-import { apiKeysRouter } from "./routes/apiKeys";
-import { eventsRouter } from "./routes/events";
-import { authRouter } from "./routes/auth";
+import { errorHandler } from "@risk-engine/http";
+import {
+  getApiGatewayPort,
+  getDatabaseUrl,
+  getRedisStreamName,
+  getJwtSecret,
+  getAllowedOrigin,
+} from "./config/env";
+import { createAuthMiddleware } from "./middleware/authenticate";
+
+// Repositories
+import { AuthRepository } from "./repositories/auth.repository";
+import { OrganizationRepository } from "./repositories/organization.repository";
+import { ProjectRepository } from "./repositories/project.repository";
+import { IncidentRepository } from "./repositories/incident.repository";
+import { EventRepository } from "./repositories/event.repository";
+import { ApiKeyRepository } from "./repositories/apiKey.repository";
+
+// Services
+import { AuthService } from "./services/auth.service";
+import { OrganizationService } from "./services/organization.service";
+import { ProjectService } from "./services/project.service";
+import { IncidentService } from "./services/incident.service";
+import { EventService } from "./services/event.service";
+import { ApiKeyService } from "./services/apiKey.service";
+
+// Controllers
+import { AuthController } from "./controllers/auth.controller";
+import { OrganizationController } from "./controllers/organization.controller";
+import { ProjectController } from "./controllers/project.controller";
+import { IncidentController } from "./controllers/incident.controller";
+import { EventController } from "./controllers/event.controller";
+import { ApiKeyController } from "./controllers/apiKey.controller";
+
+// Routes
+import { createAuthRouter } from "./routes/auth.routes";
+import { createOrganizationsRouter } from "./routes/organization.routes";
+import { createProjectsRouter } from "./routes/project.routes";
+import { createIncidentsRouter } from "./routes/incident.routes";
+import { createEventsRouter } from "./routes/event.routes";
+import { createApiKeysRouter } from "./routes/apiKey.routes";
 
 const logger = createLogger("api-gateway");
-const redis = createRedisClient();
-const streamName = getRedisStreamName();
 
 async function bootstrap(): Promise<void> {
   const db = getDb(getDatabaseUrl());
+  const redis = createRedisClient();
+  const jwtSecret = getJwtSecret();
+  const streamName = getRedisStreamName();
 
+  const authenticate = createAuthMiddleware(db, jwtSecret);
+
+  // ── Repositories ─────────────────────────────────────────────────────────────
+  const userRepo = new AuthRepository(db);
+  const orgRepo = new OrganizationRepository(db);
+  const projectRepo = new ProjectRepository(db);
+  const incidentRepo = new IncidentRepository(db);
+  const eventRepo = new EventRepository(db);
+  const apiKeyRepo = new ApiKeyRepository(db);
+
+  // ── Services ──────────────────────────────────────────────────────────────────
+  const authService = new AuthService(userRepo, orgRepo, projectRepo, apiKeyRepo, jwtSecret);
+  const orgService = new OrganizationService(orgRepo, projectRepo);
+  const projectService = new ProjectService(projectRepo);
+  const incidentService = new IncidentService(incidentRepo, projectRepo, redis, streamName);
+  const eventService = new EventService(eventRepo);
+  const apiKeyService = new ApiKeyService(apiKeyRepo, projectRepo);
+
+  // ── Controllers ───────────────────────────────────────────────────────────────
+  const authCtrl = new AuthController(authService);
+  const orgCtrl = new OrganizationController(orgService);
+  const projectCtrl = new ProjectController(projectService);
+  const incidentCtrl = new IncidentController(incidentService);
+  const eventCtrl = new EventController(eventService);
+  const apiKeyCtrl = new ApiKeyController(apiKeyService);
+
+  // ── App ───────────────────────────────────────────────────────────────────────
   const app = express();
 
   app.use(cors({ origin: getAllowedOrigin(), credentials: true }));
@@ -27,196 +88,26 @@ async function bootstrap(): Promise<void> {
   app.use(cookieParser());
 
   app.get("/health", (_req, res) => {
-    res.json({
-      status: "ok",
-      service: "api-gateway",
-      timestamp: new Date().toISOString(),
-    });
+    res.json({ status: "ok", service: "api-gateway", timestamp: new Date().toISOString() });
   });
 
-  // Auth (signup, login, logout, me)
-  app.use("/auth", authRouter);
+  // ── Routes ────────────────────────────────────────────────────────────────────
+  app.use(createAuthRouter(authCtrl, authenticate));
+  app.use(createOrganizationsRouter(orgCtrl, authenticate));
+  app.use(createProjectsRouter(projectCtrl, authenticate));
+  app.use(createIncidentsRouter(incidentCtrl, authenticate));
+  app.use(createEventsRouter(eventCtrl, authenticate));
+  app.use(createApiKeysRouter(apiKeyCtrl, authenticate));
 
-  // Organizations (replaces tenants)
-  app.use(organizationsRouter);
-
-  // API key management
-  app.use(apiKeysRouter);
-
-  // Events query
-  app.use(eventsRouter);
-
-  // Projects — org-scoped
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  app.post("/projects", authenticate, async (req, res, next) => {
-    try {
-      const { name, environment } = req.body as { name?: string; environment?: string };
-
-      if (!name) {
-        return res.status(400).json({ message: "name is required" });
-      }
-
-      const [project] = await db
-        .insert(projects)
-        .values({
-          name,
-          organizationId: req.auth.organization.id,
-          environment: (environment as "PRODUCTION" | "STAGING" | "DEV") ?? "PRODUCTION",
-        })
-        .returning();
-
-      return res.status(201).json({
-        id: project.id,
-        organizationId: project.organizationId,
-        name: project.name,
-        environment: project.environment,
-        createdAt: project.createdAt.toISOString(),
-        updatedAt: project.updatedAt.toISOString(),
-      });
-    } catch (err) {
-      next(err);
-    }
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  app.get("/projects", authenticate, async (req, res, next) => {
-    try {
-      const rows = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.organizationId, req.auth.organization.id));
-
-      return res.json(
-        rows.map((project) => ({
-          id: project.id,
-          organizationId: project.organizationId,
-          name: project.name,
-          environment: project.environment,
-          createdAt: project.createdAt.toISOString(),
-          updatedAt: project.updatedAt.toISOString(),
-        })),
-      );
-    } catch (err) {
-      next(err);
-    }
-  });
-
-  // Incidents — org-scoped
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  app.post("/incidents", authenticate, async (req, res, next) => {
-    try {
-      const { projectId, status, severity, summary } = req.body as {
-        projectId?: string;
-        status?: string;
-        severity?: string;
-        summary?: string;
-      };
-
-      if (!projectId || !status || !severity || !summary) {
-        return res.status(400).json({ message: "projectId, status, severity, and summary are required" });
-      }
-
-      // Verify projectId belongs to the authenticated org
-      const [ownedProject] = await db
-        .select({ id: projects.id })
-        .from(projects)
-        .where(and(eq(projects.id, projectId), eq(projects.organizationId, req.auth.organization.id)))
-        .limit(1);
-
-      if (!ownedProject) {
-        return res.status(403).json({ message: "Project not found in your organization" });
-      }
-
-      const [incident] = await db
-        .insert(incidents)
-        .values({
-          organizationId: req.auth.organization.id,
-          projectId,
-          status: status as "OPEN" | "INVESTIGATING" | "RESOLVED",
-          severity,
-          summary,
-        })
-        .returning();
-
-      const payload = {
-        incidentId: incident.id,
-        organizationId: incident.organizationId,
-        projectId: incident.projectId,
-        status: incident.status,
-        severity: incident.severity,
-        summary: incident.summary,
-        createdAt: incident.createdAt.toISOString(),
-        updatedAt: incident.updatedAt.toISOString(),
-      };
-
-      await redis.xadd(
-        streamName,
-        "*",
-        "type",
-        INCIDENT_CREATED,
-        "organizationId",
-        incident.organizationId,
-        "data",
-        JSON.stringify(payload),
-      );
-
-      return res.status(201).json({ id: incident.id });
-    } catch (err) {
-      next(err);
-    }
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  app.get("/incidents", authenticate, async (req, res, next) => {
-    try {
-      const { project_id } = req.query as { project_id?: string };
-      const conditions = [eq(incidents.organizationId, req.auth.organization.id)];
-      if (project_id) conditions.push(eq(incidents.projectId, project_id));
-
-      const rows = await db
-        .select()
-        .from(incidents)
-        .where(and(...conditions));
-
-      return res.json(
-        rows.map((incident) => ({
-          id: incident.id,
-          organizationId: incident.organizationId,
-          projectId: incident.projectId,
-          status: incident.status,
-          severity: incident.severity,
-          summary: incident.summary,
-          createdAt: incident.createdAt.toISOString(),
-          updatedAt: incident.updatedAt.toISOString(),
-        })),
-      );
-    } catch (err) {
-      next(err);
-    }
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  app.use(
-    async (
-      err: unknown,
-      _req: express.Request,
-      res: express.Response,
-      _next: express.NextFunction,
-    ) => {
-      logger.error({ err }, "Unhandled error in API gateway");
-      res.status(500).json({ message: "Internal server error" });
-    },
-  );
+  app.use(errorHandler);
 
   const port = getApiGatewayPort();
-
   app.listen(port, () => {
     logger.info({ port }, "API gateway listening");
   });
 }
 
 bootstrap().catch((error) => {
-  console.log(error);
   logger.error({ error }, "Failed to start API gateway");
   process.exit(1);
 });
