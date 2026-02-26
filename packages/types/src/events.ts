@@ -13,7 +13,11 @@ export interface EventIngestedData {
   organizationId: string;
   projectId: string;
   eventId: string;
+  type: string;
+  source: string;
   severity: EventSeverity;
+  payload: object;
+  occurredAt: string;
   timestamp: number;
 }
 

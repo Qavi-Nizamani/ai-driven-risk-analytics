@@ -3,7 +3,7 @@ import { and, eq, gte, lte, desc } from "drizzle-orm";
 import { Worker } from "bullmq";
 import { createLogger } from "@risk-engine/logger";
 import { getBullMqConnectionOptions, getRedisClient } from "@risk-engine/redis";
-import { EventSeverity, IncidentStatus } from "@risk-engine/types";
+import { EventSeverity, IncidentSeverity, IncidentStatus } from "@risk-engine/types";
 import { getDb, events, incidents, incidentEvents } from "@risk-engine/db";
 import { getAnomalyQueueName, getDatabaseUrl, getWorkerPort } from "./config/env";
 import {
@@ -92,7 +92,7 @@ async function runWorker(): Promise<void> {
           organizationId,
           projectId,
           status: IncidentStatus.OPEN,
-          severity: EventSeverity.ERROR,
+          severity: IncidentSeverity.CRITICAL,
           summary: `High error rate detected: ${errorCount} ERROR events in last 60 seconds.`
         })
         .returning();

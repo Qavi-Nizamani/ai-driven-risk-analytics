@@ -54,7 +54,11 @@ export class EventIngestionService {
       organizationId: input.organizationId,
       projectId: input.projectId,
       eventId: event.id,
+      type: event.type,
+      source: event.source,
       severity: input.severity,
+      payload: event.payload,
+      occurredAt: event.occurredAt.toISOString(),
       timestamp: occurredAtMs,
     });
 
