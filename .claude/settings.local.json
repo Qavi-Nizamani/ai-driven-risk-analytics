@@ -13,7 +13,16 @@
       "Bash(docker compose exec postgres pg_isready -U postgres)",
       "Bash(pnpm --filter @risk-engine/db db:migrate)",
       "Bash(pnpm --filter @risk-engine/db db:generate)",
-      "Bash(docker compose -f /d/projects/personal/ai-driven-risk-analytics/docker-compose.yml exec postgres psql -U postgres -c \"\\\\l\")"
+      "Bash(docker compose -f /d/projects/personal/ai-driven-risk-analytics/docker-compose.yml exec postgres psql -U postgres -c \"\\\\l\")",
+      "Bash(pnpm --filter @risk-engine/db db:push)",
+      "Bash(pnpm --filter @risk-engine/types build)",
+      "Bash(pnpm --filter @risk-engine/events build)",
+      "Bash(pnpm --filter @risk-engine/types build --filter @risk-engine/events build)",
+      "Bash(pnpm type-check)",
+      "Bash(docker ps --filter \"name=postgres\" --format \"{{.Names}}\")",
+      "Bash(docker exec ai-driven-risk-analytics-postgres-1 psql -U postgres -d incident_intel -c \"DROP TABLE IF EXISTS incident_events, incidents, events, api_keys, organization_members, projects, users, organizations, tenants CASCADE;\")",
+      "Bash(docker exec ai-driven-risk-analytics-postgres-1 psql -U postgres -d incident_intel -c \"\\\\dt\")",
+      "Bash(docker exec ai-driven-risk-analytics-postgres-1 psql -U postgres -d incident_intel -c \"\\\\di\")"
     ]
   }
 }

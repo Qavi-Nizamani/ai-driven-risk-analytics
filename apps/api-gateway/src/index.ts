@@ -1,11 +1,15 @@
 import express from "express";
 import cors from "cors";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { createLogger } from "@risk-engine/logger";
 import { getDb, projects, incidents } from "@risk-engine/db";
 import { getApiGatewayPort, getDatabaseUrl, getRedisStreamName } from "./config/env";
 import { createRedisClient } from "@risk-engine/redis";
 import { INCIDENT_CREATED } from "@risk-engine/events";
+import { authenticate } from "./middleware/authenticate";
+import { organizationsRouter } from "./routes/organizations";
+import { apiKeysRouter } from "./routes/apiKeys";
+import { eventsRouter } from "./routes/events";
 
 const logger = createLogger("api-gateway");
 const redis = createRedisClient();
@@ -27,19 +31,39 @@ async function bootstrap(): Promise<void> {
     });
   });
 
-  app.post("/projects", async (req, res, next) => {
+  // Organizations (replaces tenants)
+  app.use(organizationsRouter);
+
+  // API key management
+  app.use(apiKeysRouter);
+
+  // Events query
+  app.use(eventsRouter);
+
+  // Projects — org-scoped
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+  app.post("/projects", authenticate, async (req, res, next) => {
     try {
-      const { name } = req.body as { name?: string };
+      const { name, environment } = req.body as { name?: string; environment?: string };
 
       if (!name) {
         return res.status(400).json({ message: "name is required" });
       }
 
-      const [project] = await db.insert(projects).values({ name }).returning();
+      const [project] = await db
+        .insert(projects)
+        .values({
+          name,
+          organizationId: req.auth.organization.id,
+          environment: (environment as "PRODUCTION" | "STAGING" | "DEV") ?? "PRODUCTION",
+        })
+        .returning();
 
       return res.status(201).json({
         id: project.id,
+        organizationId: project.organizationId,
         name: project.name,
+        environment: project.environment,
         createdAt: project.createdAt.toISOString(),
         updatedAt: project.updatedAt.toISOString(),
       });
@@ -48,13 +72,20 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  app.get("/projects", async (_req, res, next) => {
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+  app.get("/projects", authenticate, async (req, res, next) => {
     try {
-      const rows = await db.select().from(projects);
+      const rows = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.organizationId, req.auth.organization.id));
+
       return res.json(
         rows.map((project) => ({
           id: project.id,
+          organizationId: project.organizationId,
           name: project.name,
+          environment: project.environment,
           createdAt: project.createdAt.toISOString(),
           updatedAt: project.updatedAt.toISOString(),
         })),
@@ -64,28 +95,35 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  app.post("/incidents", async (req, res, next) => {
+  // Incidents — org-scoped
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+  app.post("/incidents", authenticate, async (req, res, next) => {
     try {
-      const { projectId, status, severity, relatedEventIds, summary } =
-        req.body;
+      const { projectId, status, severity, summary } = req.body as {
+        projectId?: string;
+        status?: string;
+        severity?: string;
+        summary?: string;
+      };
 
       if (!projectId || !status || !severity || !summary) {
-        return res.status(400).json({ message: "Missing required fields" });
+        return res.status(400).json({ message: "projectId, status, severity, and summary are required" });
       }
 
       const [incident] = await db
         .insert(incidents)
         .values({
+          organizationId: req.auth.organization.id,
           projectId,
-          status,
+          status: status as "OPEN" | "INVESTIGATING" | "RESOLVED",
           severity,
-          relatedEventIds: relatedEventIds ?? [],
           summary,
         })
         .returning();
 
       const payload = {
-        id: incident.id,
+        incidentId: incident.id,
+        organizationId: incident.organizationId,
         projectId: incident.projectId,
         status: incident.status,
         severity: incident.severity,
@@ -99,34 +137,37 @@ async function bootstrap(): Promise<void> {
         "*",
         "type",
         INCIDENT_CREATED,
+        "organizationId",
+        incident.organizationId,
         "data",
         JSON.stringify(payload),
       );
 
-      return res.status(201).json({
-        id: incident.id,
-      });
+      return res.status(201).json({ id: incident.id });
     } catch (err) {
       next(err);
     }
   });
 
-  app.get("/incidents/:projectId", async (req, res, next) => {
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+  app.get("/incidents", authenticate, async (req, res, next) => {
     try {
-      const { projectId } = req.params;
+      const { project_id } = req.query as { project_id?: string };
+      const conditions = [eq(incidents.organizationId, req.auth.organization.id)];
+      if (project_id) conditions.push(eq(incidents.projectId, project_id));
 
       const rows = await db
         .select()
         .from(incidents)
-        .where(eq(incidents.projectId, projectId));
+        .where(and(...conditions));
 
       return res.json(
         rows.map((incident) => ({
           id: incident.id,
+          organizationId: incident.organizationId,
           projectId: incident.projectId,
           status: incident.status,
           severity: incident.severity,
-          relatedEventIds: incident.relatedEventIds,
           summary: incident.summary,
           createdAt: incident.createdAt.toISOString(),
           updatedAt: incident.updatedAt.toISOString(),

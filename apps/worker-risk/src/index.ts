@@ -4,7 +4,7 @@ import { Worker } from "bullmq";
 import { createLogger } from "@risk-engine/logger";
 import { getBullMqConnectionOptions, getRedisClient } from "@risk-engine/redis";
 import { EventSeverity, IncidentStatus } from "@risk-engine/types";
-import { getDb, events, incidents } from "@risk-engine/db";
+import { getDb, events, incidents, incidentEvents } from "@risk-engine/db";
 import { getAnomalyQueueName, getDatabaseUrl, getWorkerPort } from "./config/env";
 import {
   emitAnomalyDetected,
@@ -13,6 +13,7 @@ import {
 } from "@risk-engine/events";
 
 interface AnomalyJobPayload {
+  organizationId: string;
   projectId: string;
   eventId: string;
   severity: EventSeverity;
@@ -50,7 +51,7 @@ async function runWorker(): Promise<void> {
   const worker = new Worker<AnomalyJobPayload>(
     queueName,
     async (job) => {
-      const { projectId, timestamp } = job.data;
+      const { organizationId, projectId, timestamp } = job.data;
 
       const windowMs = 60 * 1000;
       const windowStart = new Date(timestamp - windowMs);
@@ -60,22 +61,24 @@ async function runWorker(): Promise<void> {
         .from(events)
         .where(
           and(
+            eq(events.organizationId, organizationId),
             eq(events.projectId, projectId),
             eq(events.severity, EventSeverity.ERROR),
-            gte(events.timestamp, windowStart),
-            lte(events.timestamp, new Date(timestamp))
+            gte(events.occurredAt, windowStart),
+            lte(events.occurredAt, new Date(timestamp)),
           )
         )
-        .orderBy(desc(events.timestamp));
+        .orderBy(desc(events.occurredAt));
 
       const errorCount = recentErrors.length;
 
       if (errorCount <= 10) {
-        logger.info({ projectId, errorCount }, "Error rate below anomaly threshold");
+        logger.info({ organizationId, errorCount }, "Error rate below anomaly threshold");
         return;
       }
 
       await emitAnomalyDetected(streamClient, {
+        organizationId,
         projectId,
         errorCount,
         windowSeconds: 60
@@ -86,16 +89,24 @@ async function runWorker(): Promise<void> {
       const [incident] = await db
         .insert(incidents)
         .values({
+          organizationId,
           projectId,
           status: IncidentStatus.OPEN,
           severity: EventSeverity.ERROR,
-          relatedEventIds: relatedEvents.map((e) => e.id),
           summary: `High error rate detected: ${errorCount} ERROR events in last 60 seconds.`
         })
         .returning();
 
+      // Link related events via join table
+      if (relatedEvents.length > 0) {
+        await db.insert(incidentEvents).values(
+          relatedEvents.map((e) => ({ incidentId: incident.id, eventId: e.id }))
+        );
+      }
+
       await emitIncidentCreated(streamClient, {
         incidentId: incident.id,
+        organizationId,
         projectId,
         status: incident.status as IncidentStatus,
         severity: incident.severity as EventSeverity,
@@ -103,7 +114,7 @@ async function runWorker(): Promise<void> {
       });
 
       logger.info(
-        { projectId, incidentId: incident.id, errorCount },
+        { organizationId, incidentId: incident.id, errorCount },
         "Created incident from anomaly"
       );
     },

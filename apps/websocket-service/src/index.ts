@@ -32,15 +32,27 @@ async function bootstrap(): Promise<void> {
   io.on("connection", (socket) => {
     logger.info({ socketId: socket.id }, "Client connected");
 
-    socket.on("subscribe_to_project", (payload: { projectId?: string }) => {
-      const projectId = payload.projectId;
+    socket.on("subscribe_to_organization", (payload: { organizationId?: string }) => {
+      const organizationId = payload.organizationId;
 
-      if (!projectId) {
+      if (!organizationId) {
         return;
       }
 
-      socket.join(projectId);
-      logger.info({ socketId: socket.id, projectId }, "Client subscribed to project room");
+      socket.join(organizationId);
+      logger.info({ socketId: socket.id, organizationId }, "Client subscribed to organization room");
+    });
+
+    // Backward compat alias
+    socket.on("subscribe_to_tenant", (payload: { tenantId?: string }) => {
+      const tenantId = payload.tenantId;
+
+      if (!tenantId) {
+        return;
+      }
+
+      socket.join(tenantId);
+      logger.info({ socketId: socket.id, tenantId }, "Client subscribed via legacy tenant alias");
     });
 
     socket.on("disconnect", () => {
@@ -58,8 +70,7 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((error) => {
-  console.log(error); 
+  console.log(error);
   logger.error({ error }, "Failed to start WebSocket service");
   process.exit(1);
 });
-

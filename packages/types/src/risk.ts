@@ -2,6 +2,15 @@ export enum EventSeverity {
   INFO = "INFO",
   WARN = "WARN",
   ERROR = "ERROR",
+  CRITICAL = "CRITICAL",
+}
+
+export enum EventType {
+  PAYMENT_FAILURE = "payment_failure",
+  SERVER_ERROR = "server_error",
+  REFUND_SPIKE = "refund_spike",
+  WEBHOOK = "webhook",
+  MANUAL = "manual",
 }
 
 export enum IncidentSeverity {
@@ -13,5 +22,6 @@ export enum IncidentSeverity {
 
 export enum IncidentStatus {
   OPEN = "OPEN",
+  INVESTIGATING = "INVESTIGATING",
   RESOLVED = "RESOLVED",
 }

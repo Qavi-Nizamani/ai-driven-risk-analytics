@@ -28,10 +28,12 @@ async function appendEvent<TData extends object>(
     payload.eventId,
     "type",
     payload.type,
+    "organizationId",
+    payload.organizationId,
     "projectId",
     payload.projectId,
     "timestamp",
-    payload.timestamp,
+    String(payload.timestamp),
     "data",
     JSON.stringify(payload.data)
   );
@@ -45,6 +47,7 @@ export async function emitEventIngested(
   const payload: EventPayload<EventIngestedData> = {
     eventId: randomUUID(),
     type: EVENT_INGESTED,
+    organizationId: data.organizationId,
     projectId: data.projectId,
     timestamp: data.timestamp,
     data
@@ -61,6 +64,7 @@ export async function emitAnomalyDetected(
   const payload: EventPayload<AnomalyDetectedData> = {
     eventId: randomUUID(),
     type: ANOMALY_DETECTED,
+    organizationId: data.organizationId,
     projectId: data.projectId,
     timestamp: Date.now(),
     data
@@ -77,6 +81,7 @@ export async function emitIncidentCreated(
   const payload: EventPayload<IncidentCreatedData> = {
     eventId: randomUUID(),
     type: INCIDENT_CREATED,
+    organizationId: data.organizationId,
     projectId: data.projectId,
     timestamp: Date.now(),
     data
@@ -93,6 +98,7 @@ export async function emitIncidentUpdated(
   const payload: EventPayload<IncidentUpdatedData> = {
     eventId: randomUUID(),
     type: INCIDENT_UPDATED,
+    organizationId: data.organizationId,
     projectId: data.projectId,
     timestamp: Date.now(),
     data
@@ -100,4 +106,3 @@ export async function emitIncidentUpdated(
 
   return appendEvent(client, payload, streamName);
 }
-

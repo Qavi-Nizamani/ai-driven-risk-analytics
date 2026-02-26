@@ -4,6 +4,7 @@ import type { EventSeverity } from "@risk-engine/types";
 import { getAnomalyQueueName } from "../config/env";
 
 export interface AnomalyJobPayload {
+  organizationId: string;
   projectId: string;
   eventId: string;
   severity: EventSeverity;
@@ -19,4 +20,3 @@ export const anomalyQueue = new Queue<AnomalyJobPayload>(queueName, {
 export async function enqueueAnomalyJob(payload: AnomalyJobPayload): Promise<void> {
   await anomalyQueue.add("anomaly-check", payload);
 }
-

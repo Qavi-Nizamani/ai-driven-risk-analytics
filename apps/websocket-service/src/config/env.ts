@@ -8,6 +8,6 @@ export function getWebsocketPort(): number {
 }
 
 export function getRedisStreamName(): string {
-  return process.env.REDIS_STREAM_NAME ?? "installment-events";
+  return process.env.REDIS_STREAM_NAME ?? "platform-events";
 }
 

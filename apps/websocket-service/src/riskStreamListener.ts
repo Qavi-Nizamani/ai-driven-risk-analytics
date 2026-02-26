@@ -1,11 +1,11 @@
 import type { Server as SocketIOServer } from "socket.io";
 import { createLogger } from "@risk-engine/logger";
 import { createRedisClient } from "@risk-engine/redis";
-import { INCIDENT_CREATED, INCIDENT_UPDATED } from "@risk-engine/events";
-import type { IncidentCreatedData, IncidentUpdatedData } from "@risk-engine/types";
+import { EVENT_INGESTED, INCIDENT_CREATED, INCIDENT_UPDATED } from "@risk-engine/events";
+import type { EventIngestedData, IncidentCreatedData, IncidentUpdatedData } from "@risk-engine/types";
 import { getRedisStreamName } from "./config/env";
 
-const logger = createLogger("websocket-service:incident-stream");
+const logger = createLogger("websocket-service:stream");
 
 interface StreamEntry {
   id: string;
@@ -81,31 +81,36 @@ export async function startIncidentStreamListener(io: SocketIOServer): Promise<v
 
           for (const entry of entries) {
             const { id, values } = entry;
-            const { type, data } = values;
-
-            if (type !== INCIDENT_CREATED && type !== INCIDENT_UPDATED) {
-              await redis.xack(streamName, groupName, id);
-              continue;
-            }
+            const { type, data, organizationId } = values;
 
             try {
-              if (type === INCIDENT_CREATED) {
-                const incident = JSON.parse(data) as IncidentCreatedData;
-                io.to(incident.projectId).emit("incident_created", incident);
+              if (type === EVENT_INGESTED) {
+                const eventData = JSON.parse(data) as EventIngestedData;
+                const room = organizationId || eventData.organizationId;
+                io.to(room).emit("event_created", eventData);
                 logger.info(
-                  { projectId: incident.projectId, incidentId: incident.incidentId },
-                  "Broadcasted INCIDENT_CREATED event"
+                  { organizationId: room, eventId: eventData.eventId },
+                  "Broadcasted EVENT_INGESTED"
+                );
+              } else if (type === INCIDENT_CREATED) {
+                const incident = JSON.parse(data) as IncidentCreatedData;
+                const room = organizationId || incident.organizationId;
+                io.to(room).emit("incident_created", incident);
+                logger.info(
+                  { organizationId: room, incidentId: incident.incidentId },
+                  "Broadcasted INCIDENT_CREATED"
                 );
               } else if (type === INCIDENT_UPDATED) {
                 const incident = JSON.parse(data) as IncidentUpdatedData;
-                io.to(incident.projectId).emit("incident_updated", incident);
+                const room = organizationId || incident.organizationId;
+                io.to(room).emit("incident_updated", incident);
                 logger.info(
-                  { projectId: incident.projectId, incidentId: incident.incidentId },
-                  "Broadcasted INCIDENT_UPDATED event"
+                  { organizationId: room, incidentId: incident.incidentId },
+                  "Broadcasted INCIDENT_UPDATED"
                 );
               }
             } catch (error) {
-              logger.error({ error, values }, "Failed to process incident event");
+              logger.error({ error, values }, "Failed to process stream event");
             } finally {
               await redis.xack(streamName, groupName, id);
             }
@@ -119,4 +124,3 @@ export async function startIncidentStreamListener(io: SocketIOServer): Promise<v
 
   void loop();
 }
-

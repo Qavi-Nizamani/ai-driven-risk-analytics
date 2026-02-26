@@ -1,7 +1,10 @@
 import express from "express";
 import { createLogger } from "@risk-engine/logger";
 import { getIngestionPort } from "./config/env";
-import { ingestRouter } from "./routes/ingest";
+import { manualRouter } from "./routes/manual";
+import { serverErrorRouter } from "./routes/serverError";
+import { webhookRouter } from "./routes/webhook";
+import { stripeRouter } from "./routes/stripe";
 
 const logger = createLogger("ingestion-service");
 
@@ -18,7 +21,10 @@ async function bootstrap(): Promise<void> {
     });
   });
 
-  app.use(ingestRouter);
+  app.use(manualRouter);
+  app.use(serverErrorRouter);
+  app.use(webhookRouter);
+  app.use(stripeRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.use(async (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
