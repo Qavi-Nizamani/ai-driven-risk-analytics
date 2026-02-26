@@ -10,9 +10,9 @@ export const apiKeysRouter: ReturnType<typeof Router> = Router();
 
 const logger = createLogger("api-gateway:api-keys");
 
-// Create API key for a project
+// Create API key for a project — no auth required (bootstrapping, project ID scopes access)
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
-apiKeysRouter.post("/projects/:projectId/api-keys", authenticate, async (req, res, next) => {
+apiKeysRouter.post("/projects/:projectId/api-keys", async (req, res, next) => {
   try {
     const { projectId } = req.params;
     const { name } = req.body as { name?: string };
@@ -23,16 +23,11 @@ apiKeysRouter.post("/projects/:projectId/api-keys", authenticate, async (req, re
 
     const db = getDb(getDatabaseUrl());
 
-    // Verify the project belongs to the authenticated org
+    // Verify the project exists
     const [project] = await db
       .select()
       .from(projects)
-      .where(
-        and(
-          eq(projects.id, projectId),
-          eq(projects.organizationId, req.auth.organization.id)
-        )
-      )
+      .where(eq(projects.id, projectId))
       .limit(1);
 
     if (!project) {

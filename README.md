@@ -17,6 +17,7 @@ Monorepo for an event-driven, microservices-based customer risk engine using Tur
 - `packages/redis` - Redis connection helpers and adapter utilities.
 - `packages/logger` - Structured logger.
 - `packages/utils` - Shared helpers.
+- `packages/db` - shared schemas and db
 
 ## Getting started
 
@@ -26,7 +27,7 @@ Monorepo for an event-driven, microservices-based customer risk engine using Tur
 pnpm install
 ```
 
-2. Start MongoDB and Redis:
+2. Start Postgres and Redis:
 
 ```bash
 docker-compose up -d

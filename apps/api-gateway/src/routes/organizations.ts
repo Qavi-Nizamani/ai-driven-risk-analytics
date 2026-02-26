@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { getDb, organizations, organizationMembers } from "@risk-engine/db";
+import { getDb, organizations, organizationMembers, projects } from "@risk-engine/db";
 import { createLogger } from "@risk-engine/logger";
 import { getDatabaseUrl } from "../config/env";
 import { authenticate } from "../middleware/authenticate";
@@ -61,6 +61,54 @@ organizationsRouter.get("/organizations/me", authenticate, async (req, res, next
       plan: org.plan,
       createdAt: org.createdAt.toISOString(),
       updatedAt: org.updatedAt.toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Create project under an org — no auth required (bootstrapping)
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+organizationsRouter.post("/organizations/:orgId/projects", async (req, res, next) => {
+  try {
+    const { orgId } = req.params;
+    const { name, environment } = req.body as { name?: string; environment?: string };
+
+    if (!name) {
+      return res.status(400).json({ message: "name is required" });
+    }
+
+    const db = getDb(getDatabaseUrl());
+
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .limit(1);
+
+    if (!org) {
+      return res.status(404).json({ message: "Organization not found" });
+    }
+
+    const validEnvs = ["PRODUCTION", "STAGING", "DEV"] as const;
+    const resolvedEnv = validEnvs.includes(environment as typeof validEnvs[number])
+      ? (environment as typeof validEnvs[number])
+      : "PRODUCTION";
+
+    const [project] = await db
+      .insert(projects)
+      .values({ name, organizationId: orgId, environment: resolvedEnv })
+      .returning();
+
+    logger.info({ organizationId: orgId, projectId: project.id }, "Project created");
+
+    return res.status(201).json({
+      id: project.id,
+      organizationId: project.organizationId,
+      name: project.name,
+      environment: project.environment,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
     });
   } catch (err) {
     next(err);
