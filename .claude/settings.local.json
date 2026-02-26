@@ -22,7 +22,10 @@
       "Bash(docker ps --filter \"name=postgres\" --format \"{{.Names}}\")",
       "Bash(docker exec ai-driven-risk-analytics-postgres-1 psql -U postgres -d incident_intel -c \"DROP TABLE IF EXISTS incident_events, incidents, events, api_keys, organization_members, projects, users, organizations, tenants CASCADE;\")",
       "Bash(docker exec ai-driven-risk-analytics-postgres-1 psql -U postgres -d incident_intel -c \"\\\\dt\")",
-      "Bash(docker exec ai-driven-risk-analytics-postgres-1 psql -U postgres -d incident_intel -c \"\\\\di\")"
+      "Bash(docker exec ai-driven-risk-analytics-postgres-1 psql -U postgres -d incident_intel -c \"\\\\di\")",
+      "Bash(pnpm --filter @risk-engine/api-gateway add bcryptjs jsonwebtoken cookie-parser)",
+      "Bash(pnpm --filter api-gateway add bcryptjs jsonwebtoken cookie-parser)",
+      "Bash(pnpm --filter api-gateway add -D @types/bcryptjs @types/jsonwebtoken @types/cookie-parser)"
     ]
   }
 }

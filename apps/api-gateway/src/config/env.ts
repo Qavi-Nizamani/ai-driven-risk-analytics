@@ -24,3 +24,17 @@ export function getRedisStreamName(): string {
 export function getRiskQueueName(): string {
   return process.env.ANOMALY_QUEUE_NAME ?? "risk-scoring";
 }
+
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error("JWT_SECRET is required");
+  }
+
+  return secret;
+}
+
+export function getAllowedOrigin(): string {
+  return process.env.ALLOWED_ORIGIN ?? "http://localhost:3000";
+}

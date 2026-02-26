@@ -1,14 +1,22 @@
 import { createHash } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
 import { eq } from "drizzle-orm";
-import { getDb, apiKeys, projects, organizations } from "@risk-engine/db";
-import type { ApiKey, Organization, Project } from "@risk-engine/db";
-import { getDatabaseUrl } from "../config/env";
+import jwt from "jsonwebtoken";
+import { getDb, apiKeys, projects, organizations, users } from "@risk-engine/db";
+import type { ApiKey, Organization, Project, User } from "@risk-engine/db";
+import { getDatabaseUrl, getJwtSecret } from "../config/env";
 
 export interface AuthContext {
   organization: Organization;
   project: Project;
-  apiKey: ApiKey;
+  apiKey?: ApiKey;
+  user?: User;
+}
+
+export interface JwtPayload {
+  userId: string;
+  organizationId: string;
+  projectId: string;
 }
 
 declare global {
@@ -16,6 +24,7 @@ declare global {
   namespace Express {
     interface Request {
       auth: AuthContext;
+      cookies: Record<string, string>;
     }
   }
 }
@@ -27,39 +36,76 @@ export async function authenticate(
 ): Promise<void> {
   const rawKey = req.headers["x-api-key"];
 
-  if (!rawKey || typeof rawKey !== "string") {
-    res.status(401).json({ message: "X-Api-Key header is required" });
+  // ── API key auth ────────────────────────────────────────────────────────────
+  if (rawKey && typeof rawKey === "string") {
+    const keyHash = createHash("sha256").update(rawKey).digest("hex");
+    const db = getDb(getDatabaseUrl());
+
+    const result = await db
+      .select({
+        apiKey: apiKeys,
+        project: projects,
+        organization: organizations,
+      })
+      .from(apiKeys)
+      .innerJoin(projects, eq(apiKeys.projectId, projects.id))
+      .innerJoin(organizations, eq(projects.organizationId, organizations.id))
+      .where(eq(apiKeys.keyHash, keyHash))
+      .limit(1);
+
+    if (!result.length) {
+      res.status(401).json({ message: "Invalid API key" });
+      return;
+    }
+
+    const { apiKey, project, organization } = result[0];
+
+    // Update lastUsedAt in the background (fire-and-forget)
+    void db
+      .update(apiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiKeys.id, apiKey.id));
+
+    req.auth = { organization, project, apiKey };
+    next();
     return;
   }
 
-  const keyHash = createHash("sha256").update(rawKey).digest("hex");
+  // ── JWT session auth ────────────────────────────────────────────────────────
+  const token = req.cookies?.session;
+
+  if (!token) {
+    res.status(401).json({ message: "Authentication required" });
+    return;
+  }
+
+  let payload: JwtPayload;
+
+  try {
+    payload = jwt.verify(token, getJwtSecret()) as JwtPayload;
+  } catch {
+    res.status(401).json({ message: "Invalid or expired session" });
+    return;
+  }
+
   const db = getDb(getDatabaseUrl());
 
-  const result = await db
-    .select({
-      apiKey: apiKeys,
-      project: projects,
-      organization: organizations,
-    })
-    .from(apiKeys)
-    .innerJoin(projects, eq(apiKeys.projectId, projects.id))
-    .innerJoin(organizations, eq(projects.organizationId, organizations.id))
-    .where(eq(apiKeys.keyHash, keyHash))
-    .limit(1);
+  const [orgRow, projectRow, userRow] = await Promise.all([
+    db.select().from(organizations).where(eq(organizations.id, payload.organizationId)).limit(1),
+    db.select().from(projects).where(eq(projects.id, payload.projectId)).limit(1),
+    db.select().from(users).where(eq(users.id, payload.userId)).limit(1),
+  ]);
 
-  if (!result.length) {
-    res.status(401).json({ message: "Invalid API key" });
+  if (!orgRow.length || !projectRow.length || !userRow.length) {
+    res.status(401).json({ message: "Session references deleted resources" });
     return;
   }
 
-  const { apiKey, project, organization } = result[0];
+  req.auth = {
+    organization: orgRow[0],
+    project: projectRow[0],
+    user: userRow[0],
+  };
 
-  // Update lastUsedAt in the background (fire-and-forget)
-  void db
-    .update(apiKeys)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(apiKeys.id, apiKey.id));
-
-  req.auth = { organization, project, apiKey };
   next();
 }

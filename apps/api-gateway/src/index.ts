@@ -1,15 +1,17 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { eq, and } from "drizzle-orm";
 import { createLogger } from "@risk-engine/logger";
 import { getDb, projects, incidents } from "@risk-engine/db";
-import { getApiGatewayPort, getDatabaseUrl, getRedisStreamName } from "./config/env";
+import { getApiGatewayPort, getDatabaseUrl, getRedisStreamName, getAllowedOrigin } from "./config/env";
 import { createRedisClient } from "@risk-engine/redis";
 import { INCIDENT_CREATED } from "@risk-engine/events";
 import { authenticate } from "./middleware/authenticate";
 import { organizationsRouter } from "./routes/organizations";
 import { apiKeysRouter } from "./routes/apiKeys";
 import { eventsRouter } from "./routes/events";
+import { authRouter } from "./routes/auth";
 
 const logger = createLogger("api-gateway");
 const redis = createRedisClient();
@@ -20,8 +22,9 @@ async function bootstrap(): Promise<void> {
 
   const app = express();
 
-  app.use(cors());
+  app.use(cors({ origin: getAllowedOrigin(), credentials: true }));
   app.use(express.json());
+  app.use(cookieParser());
 
   app.get("/health", (_req, res) => {
     res.json({
@@ -30,6 +33,9 @@ async function bootstrap(): Promise<void> {
       timestamp: new Date().toISOString(),
     });
   });
+
+  // Auth (signup, login, logout, me)
+  app.use("/auth", authRouter);
 
   // Organizations (replaces tenants)
   app.use(organizationsRouter);
@@ -108,6 +114,17 @@ async function bootstrap(): Promise<void> {
 
       if (!projectId || !status || !severity || !summary) {
         return res.status(400).json({ message: "projectId, status, severity, and summary are required" });
+      }
+
+      // Verify projectId belongs to the authenticated org
+      const [ownedProject] = await db
+        .select({ id: projects.id })
+        .from(projects)
+        .where(and(eq(projects.id, projectId), eq(projects.organizationId, req.auth.organization.id)))
+        .limit(1);
+
+      if (!ownedProject) {
+        return res.status(403).json({ message: "Project not found in your organization" });
       }
 
       const [incident] = await db
