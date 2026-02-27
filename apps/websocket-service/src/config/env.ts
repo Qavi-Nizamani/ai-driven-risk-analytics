@@ -11,3 +11,7 @@ export function getRedisStreamName(): string {
   return process.env.REDIS_STREAM_NAME ?? "platform-events";
 }
 
+export function getAllowedOrigin(): string {
+  return process.env.ALLOWED_ORIGIN ?? "http://localhost:3000";
+}
+

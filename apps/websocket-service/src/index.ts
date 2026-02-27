@@ -3,7 +3,7 @@ import express from "express";
 import { Server as SocketIOServer } from "socket.io";
 import { createLogger } from "@risk-engine/logger";
 import { createSocketIoRedisAdapter } from "@risk-engine/redis";
-import { getWebsocketPort } from "./config/env";
+import { getWebsocketPort, getAllowedOrigin } from "./config/env";
 import { startIncidentStreamListener } from "./riskStreamListener";
 
 const logger = createLogger("websocket-service");
@@ -22,7 +22,8 @@ async function bootstrap(): Promise<void> {
   const server = http.createServer(app);
   const io = new SocketIOServer(server, {
     cors: {
-      origin: "*"
+      origin: getAllowedOrigin(),
+      credentials: true,
     }
   });
 
