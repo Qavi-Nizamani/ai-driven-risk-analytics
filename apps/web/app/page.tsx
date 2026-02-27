@@ -1,51 +1,29 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
   return (
-    <main style={{ fontFamily: "monospace", padding: "24px", maxWidth: "480px", margin: "80px auto" }}>
-      <h1 style={{ marginBottom: "8px" }}>Incident Intelligence Platform</h1>
-      <p style={{ color: "#6b7280", marginBottom: "32px" }}>
-        Real-time incident detection and risk analytics.
-      </p>
-      <div style={{ display: "flex", gap: "12px" }}>
-        <Link
-          href="/signup"
-          style={{
-            padding: "10px 20px",
-            background: "#6366f1",
-            color: "#fff",
-            borderRadius: "4px",
-            textDecoration: "none",
-            fontWeight: 700,
-            fontSize: "14px",
-          }}
-        >
-          Create account
-        </Link>
-        <Link
-          href="/login"
-          style={{
-            padding: "10px 20px",
-            border: "1px solid #374151",
-            color: "#9ca3af",
-            borderRadius: "4px",
-            textDecoration: "none",
-            fontSize: "14px",
-          }}
-        >
-          Sign in
-        </Link>
-        <Link
-          href="/dashboard"
-          style={{
-            padding: "10px 20px",
-            color: "#6b7280",
-            textDecoration: "none",
-            fontSize: "14px",
-          }}
-        >
-          Dashboard →
-        </Link>
+    <main className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <div className="max-w-md w-full space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Incident Intelligence Platform
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Real-time incident detection and risk analytics.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button asChild>
+            <Link href="/signup">Create account</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/login">Sign in</Link>
+          </Button>
+          <Button asChild variant="ghost">
+            <Link href="/dashboard">Dashboard →</Link>
+          </Button>
+        </div>
       </div>
     </main>
   );
