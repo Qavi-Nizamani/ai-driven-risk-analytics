@@ -1,13 +1,33 @@
 export interface SessionInfo {
   organization: { id: string; name: string; plan: string };
-  project: { id: string; name: string; environment: string };
   user: { id: string; email: string; name: string } | null;
 }
 
 export interface SignupResult {
-  apiKey: string;
   organization: { id: string; name: string };
-  project: { id: string; name: string };
+  user: { id: string; email: string; name: string };
+}
+
+export interface ProjectRow {
+  id: string;
+  organizationId: string;
+  name: string;
+  environment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectCreateResult extends ProjectRow {
+  apiKey: string;
+}
+
+export interface MemberRow {
+  id: string;
+  organizationId: string;
+  userId: string;
+  role: "OWNER" | "ADMIN" | "MEMBER";
+  createdAt: string;
+  user: { id: string; email: string; name: string };
 }
 
 export interface EventRow {

@@ -7,7 +7,7 @@ import type { ApiKey, Organization, Project, User } from "@risk-engine/db";
 
 export interface AuthContext {
   organization: Organization;
-  project: Project;
+  project?: Project;
   apiKey?: ApiKey;
   user?: User;
 }
@@ -15,7 +15,6 @@ export interface AuthContext {
 export interface JwtPayload {
   userId: string;
   organizationId: string;
-  projectId: string;
 }
 
 declare global {
@@ -77,18 +76,17 @@ export function createAuthMiddleware(db: Db, jwtSecret: string): RequestHandler 
       return;
     }
 
-    const [orgRow, projectRow, userRow] = await Promise.all([
+    const [orgRow, userRow] = await Promise.all([
       db.select().from(organizations).where(eq(organizations.id, payload.organizationId)).limit(1),
-      db.select().from(projects).where(eq(projects.id, payload.projectId)).limit(1),
       db.select().from(users).where(eq(users.id, payload.userId)).limit(1),
     ]);
 
-    if (!orgRow.length || !projectRow.length || !userRow.length) {
+    if (!orgRow.length || !userRow.length) {
       res.status(401).json({ message: "Session references deleted resources" });
       return;
     }
 
-    req.auth = { organization: orgRow[0], project: projectRow[0], user: userRow[0] };
+    req.auth = { organization: orgRow[0], user: userRow[0] };
     next();
   };
 }

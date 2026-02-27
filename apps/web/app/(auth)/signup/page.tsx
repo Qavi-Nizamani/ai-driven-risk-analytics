@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { SignupForm } from "@/components/auth/SignupForm";
-import { ApiKeyReveal } from "@/components/auth/ApiKeyReveal";
-import type { SignupResult } from "@/types/session";
 
 export default function SignupPage() {
-  const [result, setResult] = useState<SignupResult | null>(null);
+  const router = useRouter();
 
-  if (result) {
-    return <ApiKeyReveal result={result} />;
-  }
-
-  return <SignupForm onSuccess={setResult} />;
+  return (
+    <SignupForm
+      onSuccess={() => router.push("/dashboard/projects")}
+    />
+  );
 }

@@ -4,6 +4,9 @@ import type {
   EventRow,
   IncidentRow,
   ApiKeyRow,
+  ProjectRow,
+  ProjectCreateResult,
+  MemberRow,
 } from "@/types/session";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -40,7 +43,7 @@ export const api = {
   auth: {
     me: () => request<SessionInfo>("/auth/me"),
     login: (email: string, password: string) =>
-      request<void>("/auth/login", {
+      request<{ user: SessionInfo["user"]; organization: SessionInfo["organization"] }>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       }),
@@ -55,6 +58,31 @@ export const api = {
         body: JSON.stringify(data),
       }),
     logout: () => request<void>("/auth/logout", { method: "POST" }),
+  },
+
+  projects: {
+    list: () => request<ProjectRow[]>("/projects"),
+    create: (name: string, environment?: string) =>
+      request<ProjectCreateResult>("/projects", {
+        method: "POST",
+        body: JSON.stringify({ name, environment }),
+      }),
+    getById: (id: string) => request<ProjectRow>(`/projects/${id}`),
+    update: (id: string, data: { name?: string; environment?: string }) =>
+      request<ProjectRow>(`/projects/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) => request<void>(`/projects/${id}`, { method: "DELETE" }),
+  },
+
+  organizations: {
+    members: () => request<MemberRow[]>("/organizations/members"),
+    updateMe: (data: { name?: string; plan?: string }) =>
+      request<{ id: string; name: string; plan: string; createdAt: string; updatedAt: string }>(
+        "/organizations/me",
+        { method: "PATCH", body: JSON.stringify(data) },
+      ),
   },
 
   events: {

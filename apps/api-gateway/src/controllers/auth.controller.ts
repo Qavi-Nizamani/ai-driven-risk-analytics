@@ -27,8 +27,6 @@ export class AuthController {
     res.status(201).json({
       user: result.user,
       organization: result.organization,
-      project: result.project,
-      apiKey: result.apiKey,
     });
   };
 
@@ -45,7 +43,6 @@ export class AuthController {
     res.json({
       user: result.user,
       organization: result.organization,
-      project: result.project,
     });
   };
 
@@ -67,11 +64,6 @@ export class AuthController {
         id: req.auth.organization.id,
         name: req.auth.organization.name,
         plan: req.auth.organization.plan,
-      },
-      project: {
-        id: req.auth.project.id,
-        name: req.auth.project.name,
-        environment: req.auth.project.environment,
       },
     });
   };

@@ -37,25 +37,43 @@ export class OrganizationController {
     });
   };
 
-  createProject = async (req: Request, res: Response): Promise<void> => {
-    const { orgId } = req.params;
-    const { name, environment } = req.body as {
-      name: string;
-      environment?: "PRODUCTION" | "STAGING" | "DEV";
+  updateMe = async (req: Request, res: Response): Promise<void> => {
+    const { name, plan } = req.body as {
+      name?: string;
+      plan?: "FREE" | "PRO" | "ENTERPRISE";
     };
 
-    const project = await this.orgService.createProjectUnderOrg(orgId, { name, environment });
+    const org = await this.orgService.updateOrg(
+      req.auth.organization.id,
+      { name, plan },
+      req.auth.organization.id,
+    );
 
-    logger.info({ organizationId: orgId, projectId: project.id }, "Project created");
-
-    res.status(201).json({
-      id: project.id,
-      organizationId: project.organizationId,
-      name: project.name,
-      environment: project.environment,
-      createdAt: project.createdAt.toISOString(),
-      updatedAt: project.updatedAt.toISOString(),
+    res.json({
+      id: org.id,
+      name: org.name,
+      plan: org.plan,
+      createdAt: org.createdAt.toISOString(),
+      updatedAt: org.updatedAt.toISOString(),
     });
+  };
+
+  listMembers = async (req: Request, res: Response): Promise<void> => {
+    const members = await this.orgService.listMembers(
+      req.auth.organization.id,
+      req.auth.organization.id,
+    );
+
+    res.json(
+      members.map((m) => ({
+        id: m.id,
+        organizationId: m.organizationId,
+        userId: m.userId,
+        role: m.role,
+        createdAt: m.createdAt.toISOString(),
+        user: { id: m.user.id, email: m.user.email, name: m.user.name },
+      })),
+    );
   };
 
   addMember = async (req: Request, res: Response): Promise<void> => {

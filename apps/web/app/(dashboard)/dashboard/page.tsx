@@ -1,5 +1,5 @@
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { OrgOverview } from "@/components/dashboard/OrgOverview";
 
 export default function DashboardPage() {
-  return <DashboardShell />;
+  return <OrgOverview />;
 }

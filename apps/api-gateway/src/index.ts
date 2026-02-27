@@ -65,9 +65,9 @@ async function bootstrap(): Promise<void> {
   const apiKeyRepo = new ApiKeyRepository(db);
 
   // ── Services ──────────────────────────────────────────────────────────────────
-  const authService = new AuthService(userRepo, orgRepo, projectRepo, apiKeyRepo, jwtSecret);
-  const orgService = new OrganizationService(orgRepo, projectRepo);
-  const projectService = new ProjectService(projectRepo);
+  const authService = new AuthService(userRepo, orgRepo, jwtSecret);
+  const orgService = new OrganizationService(orgRepo);
+  const projectService = new ProjectService(projectRepo, apiKeyRepo);
   const incidentService = new IncidentService(incidentRepo, projectRepo, redis, streamName);
   const eventService = new EventService(eventRepo);
   const apiKeyService = new ApiKeyService(apiKeyRepo, projectRepo);

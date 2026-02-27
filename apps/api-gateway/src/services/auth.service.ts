@@ -1,17 +1,13 @@
-import { randomBytes, createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import type { User, Organization, Project } from "@risk-engine/db";
+import type { User, Organization } from "@risk-engine/db";
 import { ConflictError, UnauthorizedError, BadRequestError } from "@risk-engine/http";
 import type { AuthRepository } from "../repositories/auth.repository";
 import type { OrganizationRepository } from "../repositories/organization.repository";
-import type { ProjectRepository } from "../repositories/project.repository";
-import type { ApiKeyRepository } from "../repositories/apiKey.repository";
 
 export interface JwtPayload {
   userId: string;
   organizationId: string;
-  projectId: string;
 }
 
 export interface SignupInput {
@@ -32,8 +28,6 @@ export class AuthService {
   constructor(
     private readonly userRepo: AuthRepository,
     private readonly orgRepo: OrganizationRepository,
-    private readonly projectRepo: ProjectRepository,
-    private readonly apiKeyRepo: ApiKeyRepository,
     private readonly jwtSecret: string,
   ) {}
 
@@ -48,8 +42,6 @@ export class AuthService {
   async signup(input: SignupInput): Promise<{
     user: Pick<User, "id" | "email" | "name">;
     organization: Pick<Organization, "id" | "name" | "plan">;
-    project: Pick<Project, "id" | "name" | "environment">;
-    apiKey: string;
     token: string;
   }> {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -73,27 +65,11 @@ export class AuthService {
     const org = await this.orgRepo.create({ name: input.orgName });
     await this.orgRepo.addMember({ organizationId: org.id, userId: user.id, role: "OWNER" });
 
-    const project = await this.projectRepo.create({
-      organizationId: org.id,
-      name: "Default",
-      environment: "PRODUCTION",
-    });
-
-    const rawKey = randomBytes(32).toString("hex");
-    const keyHash = createHash("sha256").update(rawKey).digest("hex");
-    await this.apiKeyRepo.create({ projectId: project.id, keyHash, name: "Default Key" });
-
-    const token = this.sign({
-      userId: user.id,
-      organizationId: org.id,
-      projectId: project.id,
-    });
+    const token = this.sign({ userId: user.id, organizationId: org.id });
 
     return {
       user: { id: user.id, email: user.email, name: user.name },
       organization: { id: org.id, name: org.name, plan: org.plan },
-      project: { id: project.id, name: project.name, environment: project.environment },
-      apiKey: rawKey,
       token,
     };
   }
@@ -101,7 +77,6 @@ export class AuthService {
   async login(input: LoginInput): Promise<{
     user: Pick<User, "id" | "email" | "name">;
     organization: Pick<Organization, "id" | "name" | "plan">;
-    project: Pick<Project, "id" | "name" | "environment">;
     token: string;
   }> {
     const user = await this.userRepo.findUserByEmail(input.email);
@@ -113,14 +88,7 @@ export class AuthService {
     const membership = await this.orgRepo.findFirstMembership(user.id);
     if (!membership) throw new UnauthorizedError("User has no organization");
 
-    const project = await this.projectRepo.findFirstByOrg(membership.org.id);
-    if (!project) throw new UnauthorizedError("Organization has no projects");
-
-    const token = this.sign({
-      userId: user.id,
-      organizationId: membership.org.id,
-      projectId: project.id,
-    });
+    const token = this.sign({ userId: user.id, organizationId: membership.org.id });
 
     return {
       user: { id: user.id, email: user.email, name: user.name },
@@ -129,7 +97,6 @@ export class AuthService {
         name: membership.org.name,
         plan: membership.org.plan,
       },
-      project: { id: project.id, name: project.name, environment: project.environment },
       token,
     };
   }

@@ -9,9 +9,9 @@ const createOrgSchema = z.object({
   plan: z.enum(["FREE", "PRO", "ENTERPRISE"]).optional(),
 });
 
-const createOrgProjectSchema = z.object({
-  name: z.string().min(1),
-  environment: z.enum(["PRODUCTION", "STAGING", "DEV"]).optional(),
+const updateOrgSchema = z.object({
+  name: z.string().min(1).optional(),
+  plan: z.enum(["FREE", "PRO", "ENTERPRISE"]).optional(),
 });
 
 const addMemberSchema = z.object({
@@ -27,11 +27,8 @@ export function createOrganizationsRouter(
 
   router.post("/organizations", validate(createOrgSchema), asyncHandler(ctrl.create));
   router.get("/organizations/me", authenticate, asyncHandler(ctrl.getMe));
-  router.post(
-    "/organizations/:orgId/projects",
-    validate(createOrgProjectSchema),
-    asyncHandler(ctrl.createProject),
-  );
+  router.patch("/organizations/me", authenticate, validate(updateOrgSchema), asyncHandler(ctrl.updateMe));
+  router.get("/organizations/members", authenticate, asyncHandler(ctrl.listMembers));
   router.post(
     "/organizations/:orgId/members",
     authenticate,

@@ -7,7 +7,7 @@ import type { EventRow } from "@/types/session";
 interface UseEventsReturn {
   events: EventRow[];
   loading: boolean;
-  fetchEvents: () => Promise<void>;
+  fetchEvents: (projectId?: string) => Promise<void>;
   addEvent: (event: EventRow) => void;
 }
 
@@ -15,10 +15,10 @@ export function useEvents(): UseEventsReturn {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (projectId?: string) => {
     setLoading(true);
     try {
-      const data = await api.events.list({ limit: 50 });
+      const data = await api.events.list({ limit: 50, project_id: projectId });
       setEvents(data);
     } finally {
       setLoading(false);

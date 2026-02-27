@@ -16,6 +16,7 @@ export function createApiKeysRouter(
 
   router.post(
     "/projects/:projectId/api-keys",
+    authenticate,
     validate(createApiKeySchema),
     asyncHandler(ctrl.create),
   );

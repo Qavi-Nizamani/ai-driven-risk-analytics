@@ -7,7 +7,7 @@ import type { IncidentRow } from "@/types/session";
 interface UseIncidentsReturn {
   incidents: IncidentRow[];
   loading: boolean;
-  fetchIncidents: () => Promise<void>;
+  fetchIncidents: (projectId?: string) => Promise<void>;
   addIncident: (incident: IncidentRow) => void;
   updateIncident: (incident: IncidentRow) => void;
 }
@@ -16,10 +16,10 @@ export function useIncidents(): UseIncidentsReturn {
   const [incidents, setIncidents] = useState<IncidentRow[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchIncidents = useCallback(async () => {
+  const fetchIncidents = useCallback(async (projectId?: string) => {
     setLoading(true);
     try {
-      const data = await api.incidents.list();
+      const data = await api.incidents.list({ project_id: projectId });
       setIncidents(data);
     } finally {
       setLoading(false);

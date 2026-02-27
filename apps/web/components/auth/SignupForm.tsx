@@ -19,7 +19,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthCard } from "@/components/layout/AuthCard";
 import { api, ApiError } from "@/lib/api";
-import type { SignupResult } from "@/types/session";
 
 const schema = z
   .object({
@@ -37,7 +36,7 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 interface SignupFormProps {
-  onSuccess: (result: SignupResult) => void;
+  onSuccess: () => void;
 }
 
 export function SignupForm({ onSuccess }: SignupFormProps) {
@@ -57,13 +56,13 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
     try {
-      const result = await api.auth.signup({
+      await api.auth.signup({
         email: values.email,
         name: values.name,
         orgName: values.orgName,
         password: values.password,
       });
-      onSuccess(result);
+      onSuccess();
     } catch (err) {
       if (err instanceof ApiError) {
         setServerError(err.message);

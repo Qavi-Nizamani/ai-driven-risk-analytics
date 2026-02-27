@@ -47,4 +47,30 @@ export class ProjectRepository {
       .limit(1);
     return project ?? null;
   }
+
+  async updateByIdAndOrg(
+    id: string,
+    organizationId: string,
+    data: { name?: string; environment?: "PRODUCTION" | "STAGING" | "DEV" },
+  ): Promise<Project | null> {
+    const [updated] = await this.db
+      .update(projects)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(projects.id, id), eq(projects.organizationId, organizationId)))
+      .returning();
+    return updated ?? null;
+  }
+
+  async deleteByIdAndOrg(id: string, organizationId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, id), eq(projects.organizationId, organizationId)))
+      .limit(1);
+
+    if (!rows.length) return false;
+
+    await this.db.delete(projects).where(eq(projects.id, id));
+    return true;
+  }
 }

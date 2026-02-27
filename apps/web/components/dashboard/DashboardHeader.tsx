@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { ConnectionBadge } from "@/components/dashboard/ConnectionBadge";
 import type { SessionInfo } from "@/types/session";
 
@@ -23,11 +22,9 @@ export function DashboardHeader({
         {session && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{session.organization.name}</span>
-            <Separator orientation="vertical" className="h-3 bg-border" />
-            <span>{session.project.name}</span>
             {session.user && (
               <>
-                <Separator orientation="vertical" className="h-3 bg-border" />
+                <span className="text-border">·</span>
                 <span>{session.user.email}</span>
               </>
             )}
