@@ -56,7 +56,7 @@ export function EventsTable({ events }: EventsTableProps) {
                 />
               ) : (
                 events.map((event) => (
-                  <TableRow key={event.eventId} className="border-border">
+                  <TableRow key={event.occurredAt} className="border-border">
                     <TableCell className="text-xs font-medium">
                       {event.type}
                     </TableCell>

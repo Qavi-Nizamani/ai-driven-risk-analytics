@@ -29,19 +29,21 @@ export interface AnomalyDetectedData {
 }
 
 export interface IncidentCreatedData {
-  incidentId: string;
+  id: string;
   organizationId: string;
   projectId: string;
   status: IncidentStatus;
   severity: EventSeverity;
   summary?: string;
+  createdAt?: string;
 }
 
 export interface IncidentUpdatedData {
-  incidentId: string;
+  id: string;
   organizationId: string;
   projectId: string;
   status: IncidentStatus;
   severity: EventSeverity;
   summary?: string;
+  createdAt?: string;
 }

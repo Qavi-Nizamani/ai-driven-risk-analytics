@@ -31,7 +31,7 @@ export interface MemberRow {
 }
 
 export interface EventRow {
-  eventId: string;
+  id: string;
   organizationId: string;
   projectId: string;
   source: string;

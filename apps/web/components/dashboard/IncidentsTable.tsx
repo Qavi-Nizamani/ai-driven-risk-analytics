@@ -60,7 +60,7 @@ export function IncidentsTable({ incidents }: IncidentsTableProps) {
                 incidents.map((incident) => (
                   <TableRow key={incident.id} className="border-border">
                     <TableCell className="text-[11px] text-muted-foreground font-mono">
-                      {truncateId(incident.id)}
+                      {truncateId(incident.id || "")}
                     </TableCell>
                     <TableCell>
                       <SeverityBadge severity={incident.severity} />
