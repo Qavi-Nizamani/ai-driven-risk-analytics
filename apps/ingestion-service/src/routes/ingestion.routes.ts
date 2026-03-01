@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, validate } from "@risk-engine/http";
 import type { RequestHandler } from "express";
@@ -48,8 +48,17 @@ const webhookSchema = z.object({
 export function createIngestionRouter(
   ctrl: IngestionController,
   authenticate: RequestHandler,
+  webhookTokenAuth: RequestHandler,
 ): Router {
   const router = Router();
+
+  // Token-based webhook: raw body required for HMAC verification
+  router.post(
+    "/ingest/webhook/:token",
+    express.raw({ type: "*/*" }),
+    webhookTokenAuth,
+    asyncHandler(ctrl.ingestTokenWebhook),
+  );
 
   router.post(
     "/ingest/events",

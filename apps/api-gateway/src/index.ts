@@ -11,6 +11,7 @@ import {
   getRedisStreamName,
   getJwtSecret,
   getAllowedOrigin,
+  getIngestionBaseUrl,
 } from "./config/env";
 import { createAuthMiddleware } from "./middleware/authenticate";
 
@@ -21,6 +22,7 @@ import { ProjectRepository } from "./repositories/project.repository";
 import { IncidentRepository } from "./repositories/incident.repository";
 import { EventRepository } from "./repositories/event.repository";
 import { ApiKeyRepository } from "./repositories/apiKey.repository";
+import { WebhookEndpointRepository } from "./repositories/webhookEndpoint.repository";
 
 // Services
 import { AuthService } from "./services/auth.service";
@@ -29,6 +31,7 @@ import { ProjectService } from "./services/project.service";
 import { IncidentService } from "./services/incident.service";
 import { EventService } from "./services/event.service";
 import { ApiKeyService } from "./services/apiKey.service";
+import { WebhookEndpointService } from "./services/webhookEndpoint.service";
 
 // Controllers
 import { AuthController } from "./controllers/auth.controller";
@@ -37,6 +40,7 @@ import { ProjectController } from "./controllers/project.controller";
 import { IncidentController } from "./controllers/incident.controller";
 import { EventController } from "./controllers/event.controller";
 import { ApiKeyController } from "./controllers/apiKey.controller";
+import { WebhookEndpointController } from "./controllers/webhookEndpoint.controller";
 
 // Routes
 import { createAuthRouter } from "./routes/auth.routes";
@@ -45,6 +49,7 @@ import { createProjectsRouter } from "./routes/project.routes";
 import { createIncidentsRouter } from "./routes/incident.routes";
 import { createEventsRouter } from "./routes/event.routes";
 import { createApiKeysRouter } from "./routes/apiKey.routes";
+import { createWebhookEndpointRouter } from "./routes/webhookEndpoint.routes";
 
 const logger = createLogger("api-gateway");
 
@@ -63,6 +68,7 @@ async function bootstrap(): Promise<void> {
   const incidentRepo = new IncidentRepository(db);
   const eventRepo = new EventRepository(db);
   const apiKeyRepo = new ApiKeyRepository(db);
+  const webhookEndpointRepo = new WebhookEndpointRepository(db);
 
   // ── Services ──────────────────────────────────────────────────────────────────
   const authService = new AuthService(userRepo, orgRepo, jwtSecret);
@@ -71,6 +77,7 @@ async function bootstrap(): Promise<void> {
   const incidentService = new IncidentService(incidentRepo, projectRepo, redis, streamName);
   const eventService = new EventService(eventRepo);
   const apiKeyService = new ApiKeyService(apiKeyRepo, projectRepo);
+  const webhookEndpointService = new WebhookEndpointService(webhookEndpointRepo, projectRepo, getIngestionBaseUrl());
 
   // ── Controllers ───────────────────────────────────────────────────────────────
   const authCtrl = new AuthController(authService);
@@ -79,6 +86,7 @@ async function bootstrap(): Promise<void> {
   const incidentCtrl = new IncidentController(incidentService);
   const eventCtrl = new EventController(eventService);
   const apiKeyCtrl = new ApiKeyController(apiKeyService);
+  const webhookEndpointCtrl = new WebhookEndpointController(webhookEndpointService);
 
   // ── App ───────────────────────────────────────────────────────────────────────
   const app = express();
@@ -98,6 +106,7 @@ async function bootstrap(): Promise<void> {
   app.use(createIncidentsRouter(incidentCtrl, authenticate));
   app.use(createEventsRouter(eventCtrl, authenticate));
   app.use(createApiKeysRouter(apiKeyCtrl, authenticate));
+  app.use(createWebhookEndpointRouter(webhookEndpointCtrl, authenticate));
 
   app.use(errorHandler);
 

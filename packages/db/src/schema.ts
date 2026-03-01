@@ -146,6 +146,26 @@ export const incidents = pgTable("incidents", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ─── Webhook Endpoints ────────────────────────────────────────────────────────
+
+export const webhookEndpoints = pgTable(
+  "webhook_endpoints",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 128 }).notNull(),
+    token: varchar("token", { length: 64 }).notNull().unique(),
+    secret: varchar("secret", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_webhook_endpoints_token").on(table.token),
+    index("idx_webhook_endpoints_project").on(table.projectId),
+  ],
+);
+
 // ─── Incident ↔ Events (join table) ──────────────────────────────────────────
 
 export const incidentEvents = pgTable(
@@ -181,3 +201,5 @@ export type Incident = typeof incidents.$inferSelect;
 export type NewIncident = typeof incidents.$inferInsert;
 export type IncidentEvent = typeof incidentEvents.$inferSelect;
 export type NewIncidentEvent = typeof incidentEvents.$inferInsert;
+export type WebhookEndpoint = typeof webhookEndpoints.$inferSelect;
+export type NewWebhookEndpoint = typeof webhookEndpoints.$inferInsert;

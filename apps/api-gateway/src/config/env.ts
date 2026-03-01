@@ -38,3 +38,7 @@ export function getJwtSecret(): string {
 export function getAllowedOrigin(): string {
   return process.env.ALLOWED_ORIGIN ?? "http://localhost:3000";
 }
+
+export function getIngestionBaseUrl(): string {
+  return process.env.INGESTION_BASE_URL ?? "http://localhost:4100";
+}

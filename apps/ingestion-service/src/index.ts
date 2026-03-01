@@ -4,9 +4,11 @@ import { getDb } from "@risk-engine/db";
 import { errorHandler } from "@risk-engine/http";
 import { getIngestionPort, getDatabaseUrl } from "./config/env";
 import { createAuthMiddleware } from "./middleware/authenticate";
+import { createWebhookTokenAuthMiddleware } from "./middleware/webhookTokenAuth";
 
 // Repository, Service, Controller
 import { EventIngestionRepository } from "./repositories/event.repository";
+import { WebhookEndpointLookupRepository } from "./repositories/webhookEndpoint.repository";
 import { EventIngestionService } from "./services/eventIngestion.service";
 import { IngestionController } from "./controllers/ingestion.controller";
 import { createIngestionRouter } from "./routes/ingestion.routes";
@@ -19,6 +21,8 @@ async function bootstrap(): Promise<void> {
 
   // ── Repository / Service / Controller ────────────────────────────────────────
   const eventRepo = new EventIngestionRepository(db);
+  const webhookEndpointRepo = new WebhookEndpointLookupRepository(db);
+  const webhookTokenAuth = createWebhookTokenAuthMiddleware(webhookEndpointRepo);
   const ingestionService = new EventIngestionService(eventRepo);
   const ingestionCtrl = new IngestionController(ingestionService);
 
@@ -31,7 +35,7 @@ async function bootstrap(): Promise<void> {
     res.json({ status: "ok", service: "ingestion-service", timestamp: new Date().toISOString() });
   });
 
-  app.use(createIngestionRouter(ingestionCtrl, authenticate));
+  app.use(createIngestionRouter(ingestionCtrl, authenticate, webhookTokenAuth));
 
   app.use(errorHandler);
 

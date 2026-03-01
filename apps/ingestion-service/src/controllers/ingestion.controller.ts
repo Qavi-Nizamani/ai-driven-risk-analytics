@@ -254,4 +254,28 @@ export class IngestionController {
 
     res.status(201).json(result);
   };
+
+  ingestTokenWebhook = async (req: Request, res: Response): Promise<void> => {
+    const rawBody = req.body as Buffer;
+    const parsed = JSON.parse(rawBody.toString("utf8")) as Record<string, unknown>;
+    const endpointName = req.auth.webhookEndpoint?.name ?? "webhook";
+    const source = endpointName.toLowerCase().replace(/\s+/g, "-");
+
+    const result = await this.service.ingest({
+      organizationId: req.auth.organization.id,
+      projectId: req.auth.project.id,
+      source,
+      type: EventType.WEBHOOK,
+      severity: EventSeverity.INFO,
+      payload: parsed,
+      correlation: { payment_provider: source },
+    });
+
+    logger.info(
+      { organizationId: req.auth.organization.id, eventId: result.id, source },
+      "Token webhook event ingested",
+    );
+
+    res.status(201).json(result);
+  };
 }

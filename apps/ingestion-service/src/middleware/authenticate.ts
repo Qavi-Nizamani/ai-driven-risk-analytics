@@ -2,12 +2,13 @@ import { createHash } from "node:crypto";
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { eq } from "drizzle-orm";
 import { getDb, apiKeys, projects, organizations } from "@risk-engine/db";
-import type { ApiKey, Organization, Project } from "@risk-engine/db";
+import type { ApiKey, Organization, Project, WebhookEndpoint } from "@risk-engine/db";
 
 export interface AuthContext {
   organization: Organization;
   project: Project;
-  apiKey: ApiKey;
+  apiKey?: ApiKey;
+  webhookEndpoint?: WebhookEndpoint;
 }
 
 declare global {
@@ -52,7 +53,7 @@ export function createAuthMiddleware(db: Db): RequestHandler {
       .set({ lastUsedAt: new Date() })
       .where(eq(apiKeys.id, apiKey.id));
 
-    req.auth = { organization, project, apiKey };
+    req.auth = { organization, project, apiKey: apiKey };
     next();
   };
 }
