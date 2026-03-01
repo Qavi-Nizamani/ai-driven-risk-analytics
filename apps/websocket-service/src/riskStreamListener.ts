@@ -97,7 +97,7 @@ export async function startIncidentStreamListener(io: SocketIOServer): Promise<v
                 const room = organizationId || incident.organizationId;
                 io.to(room).emit("incident_created", incident);
                 logger.info(
-                  { organizationId: room, incidentId: incident.incidentId },
+                  { organizationId: room, incidentId: incident.id },
                   "Broadcasted INCIDENT_CREATED"
                 );
               } else if (type === INCIDENT_UPDATED) {
@@ -105,7 +105,7 @@ export async function startIncidentStreamListener(io: SocketIOServer): Promise<v
                 const room = organizationId || incident.organizationId;
                 io.to(room).emit("incident_updated", incident);
                 logger.info(
-                  { organizationId: room, incidentId: incident.incidentId },
+                  { organizationId: room, incidentId: incident.id },
                   "Broadcasted INCIDENT_UPDATED"
                 );
               }
