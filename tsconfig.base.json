@@ -21,7 +21,8 @@
       "@risk-engine/events": ["packages/events/src"],
       "@risk-engine/redis": ["packages/redis/src"],
       "@risk-engine/logger": ["packages/logger/src"],
-      "@risk-engine/utils": ["packages/utils/src"]
+      "@risk-engine/utils": ["packages/utils/src"],
+      "@risk-engine/http": ["packages/http/src"]
     }
   }
 }
