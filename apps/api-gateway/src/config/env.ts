@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
+import { resolve } from "node:path";
 import { getNumberEnv } from "@risk-engine/utils";
 
-dotenv.config();
+dotenv.config({ path: resolve(__dirname, "../../../../.env") });
 
 export function getApiGatewayPort(): number {
   return getNumberEnv("API_GATEWAY_PORT", 4000);
