@@ -5,7 +5,7 @@
   "description": "AI-Powered Realtime Customer Risk Engine - Turborepo monorepo (Phase 1, event-driven MERN, Redis Streams, BullMQ, WebSockets).",
   "license": "MIT",
   "engines": {
-    "node": ">=20.0.0"
+    "node": "22.22.0"
   },
   "scripts": {
     "dev": "turbo run dev",
