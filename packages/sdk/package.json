@@ -5,6 +5,18 @@
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Qavi-Nizamani/risk-engine.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/Qavi-Nizamani/risk-engine/tree/main/packages/sdk",
+  "bugs": {
+    "url": "https://github.com/Qavi-Nizamani/risk-engine/issues"
+  },
   "scripts": {
     "clean": "rimraf dist tsconfig.tsbuildinfo",
     "build": "tsc -b",
