@@ -18,7 +18,8 @@ export interface ProjectRow {
 }
 
 export interface ProjectCreateResult extends ProjectRow {
-  apiKey: string;
+  secretKey: string;
+  publishableKey: string;
 }
 
 export interface MemberRow {
@@ -58,6 +59,7 @@ export interface ApiKeyRow {
   id: string;
   name: string;
   projectId: string;
+  type: "secret" | "publishable";
   lastUsedAt: string | null;
   createdAt: string;
 }

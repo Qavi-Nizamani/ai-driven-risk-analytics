@@ -1,8 +1,9 @@
-import { randomBytes, createHash } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { Project } from "@risk-engine/db";
 import { NotFoundError } from "@risk-engine/http";
 import type { ProjectRepository } from "../repositories/project.repository";
 import type { ApiKeyRepository } from "../repositories/apiKey.repository";
+import { generateRawKey } from "./apiKey.service";
 
 export class ProjectService {
   constructor(
@@ -13,14 +14,18 @@ export class ProjectService {
   async create(
     organizationId: string,
     input: { name: string; environment?: "PRODUCTION" | "STAGING" | "DEV" },
-  ): Promise<{ project: Project; rawKey: string }> {
+  ): Promise<{ project: Project; secretKey: string; publishableKey: string }> {
     const project = await this.projectRepo.create({ organizationId, ...input });
 
-    const rawKey = randomBytes(32).toString("hex");
-    const keyHash = createHash("sha256").update(rawKey).digest("hex");
-    await this.apiKeyRepo.create({ projectId: project.id, keyHash, name: "Default Key" });
+    const secretRaw = generateRawKey("secret");
+    const secretHash = createHash("sha256").update(secretRaw).digest("hex");
+    await this.apiKeyRepo.create({ projectId: project.id, keyHash: secretHash, name: "Default Secret Key", type: "secret" });
 
-    return { project, rawKey };
+    const publishableRaw = generateRawKey("publishable");
+    const publishableHash = createHash("sha256").update(publishableRaw).digest("hex");
+    await this.apiKeyRepo.create({ projectId: project.id, keyHash: publishableHash, name: "Default Publishable Key", type: "publishable" });
+
+    return { project, secretKey: secretRaw, publishableKey: publishableRaw };
   }
 
   async listByOrg(organizationId: string): Promise<Project[]> {

@@ -9,16 +9,17 @@ export class ApiKeyController {
 
   create = async (req: Request, res: Response): Promise<void> => {
     const { projectId } = req.params;
-    const { name } = req.body as { name: string };
+    const { name, type } = req.body as { name: string; type?: "secret" | "publishable" };
 
-    const { apiKey, rawKey } = await this.apiKeyService.create(projectId, { name });
+    const { apiKey, rawKey } = await this.apiKeyService.create(projectId, { name, type });
 
-    logger.info({ projectId, apiKeyId: apiKey.id }, "API key created");
+    logger.info({ projectId, apiKeyId: apiKey.id, type: apiKey.type }, "API key created");
 
     res.status(201).json({
       id: apiKey.id,
       name: apiKey.name,
       projectId: apiKey.projectId,
+      type: apiKey.type,
       key: rawKey,
       createdAt: apiKey.createdAt.toISOString(),
     });

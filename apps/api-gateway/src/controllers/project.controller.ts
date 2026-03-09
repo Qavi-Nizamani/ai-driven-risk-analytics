@@ -21,12 +21,12 @@ export class ProjectController {
       environment?: "PRODUCTION" | "STAGING" | "DEV";
     };
 
-    const { project, rawKey } = await this.projectService.create(req.auth.organization.id, {
+    const { project, secretKey, publishableKey } = await this.projectService.create(req.auth.organization.id, {
       name,
       environment,
     });
 
-    res.status(201).json({ ...serializeProject(project), apiKey: rawKey });
+    res.status(201).json({ ...serializeProject(project), secretKey, publishableKey });
   };
 
   list = async (req: Request, res: Response): Promise<void> => {

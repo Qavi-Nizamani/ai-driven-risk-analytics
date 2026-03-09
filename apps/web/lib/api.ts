@@ -130,16 +130,17 @@ export const api = {
   apiKeys: {
     list: (projectId: string) =>
       request<ApiKeyRow[]>(`/projects/${projectId}/api-keys`),
-    create: (projectId: string, name: string) =>
+    create: (projectId: string, name: string, type: "secret" | "publishable" = "secret") =>
       request<{
         id: string;
         name: string;
         projectId: string;
+        type: "secret" | "publishable";
         key: string;
         createdAt: string;
       }>(`/projects/${projectId}/api-keys`, {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, type }),
       }),
     revoke: (id: string) =>
       request<void>(`/api-keys/${id}`, { method: "DELETE" }),

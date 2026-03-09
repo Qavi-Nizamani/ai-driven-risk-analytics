@@ -6,6 +6,7 @@ import type { ApiKeyController } from "../controllers/apiKey.controller";
 
 const createApiKeySchema = z.object({
   name: z.string().min(1),
+  type: z.enum(["secret", "publishable"]).optional().default("secret"),
 });
 
 export function createApiKeysRouter(

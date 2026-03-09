@@ -8,7 +8,7 @@ interface UseApiKeysReturn {
   keys: ApiKeyRow[];
   loading: boolean;
   fetchKeys: (projectId: string) => Promise<void>;
-  generateKey: (projectId: string, name: string) => Promise<string>;
+  generateKey: (projectId: string, name: string, type: "secret" | "publishable") => Promise<string>;
   revokeKey: (id: string) => Promise<void>;
 }
 
@@ -27,13 +27,14 @@ export function useApiKeys(): UseApiKeysReturn {
   }, []);
 
   const generateKey = useCallback(
-    async (projectId: string, name: string): Promise<string> => {
-      const data = await api.apiKeys.create(projectId, name);
+    async (projectId: string, name: string, type: "secret" | "publishable"): Promise<string> => {
+      const data = await api.apiKeys.create(projectId, name, type);
       setKeys((prev) => [
         {
           id: data.id,
           name: data.name,
           projectId,
+          type: data.type,
           lastUsedAt: null,
           createdAt: data.createdAt,
         },

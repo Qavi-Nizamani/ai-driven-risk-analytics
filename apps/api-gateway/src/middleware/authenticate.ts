@@ -52,6 +52,11 @@ export function createAuthMiddleware(db: Db, jwtSecret: string): RequestHandler 
 
       const { apiKey, project, organization } = result[0];
 
+      if (apiKey.type === "publishable") {
+        res.status(403).json({ message: "Publishable keys cannot be used for management operations. Use a secret key." });
+        return;
+      }
+
       void db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, apiKey.id));
 
       req.auth = { organization, project, apiKey };

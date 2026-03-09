@@ -13,7 +13,7 @@ export interface ApiKeyWithContext {
 export class ApiKeyRepository {
   constructor(private readonly db: Db) {}
 
-  async create(data: { projectId: string; keyHash: string; name: string }): Promise<ApiKey> {
+  async create(data: { projectId: string; keyHash: string; name: string; type?: "secret" | "publishable" }): Promise<ApiKey> {
     const [key] = await this.db.insert(apiKeys).values(data).returning();
     return key;
   }
@@ -31,12 +31,13 @@ export class ApiKeyRepository {
 
   async findAllByProject(
     projectId: string,
-  ): Promise<Pick<ApiKey, "id" | "name" | "projectId" | "lastUsedAt" | "createdAt">[]> {
+  ): Promise<Pick<ApiKey, "id" | "name" | "projectId" | "type" | "lastUsedAt" | "createdAt">[]> {
     return this.db
       .select({
         id: apiKeys.id,
         name: apiKeys.name,
         projectId: apiKeys.projectId,
+        type: apiKeys.type,
         lastUsedAt: apiKeys.lastUsedAt,
         createdAt: apiKeys.createdAt,
       })

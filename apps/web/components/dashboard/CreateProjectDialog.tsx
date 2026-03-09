@@ -29,6 +29,39 @@ interface CreateProjectDialogProps {
   onCreate: (name: string, environment?: string) => Promise<ProjectCreateResult>;
 }
 
+function CopyableKeyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">{label}</p>
+      <div className="flex items-center gap-2">
+        <Input
+          readOnly
+          value={value}
+          className="font-mono text-xs bg-green-950/50 border-green-800 text-green-300"
+          onClick={(e) => (e.target as HTMLInputElement).select()}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="shrink-0 border-green-800 text-green-400 hover:bg-green-950/50"
+          onClick={() => void handleCopy()}
+        >
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function CreateProjectDialog({ open, onOpenChange, onCreate }: CreateProjectDialogProps) {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "reveal">("form");
@@ -37,7 +70,6 @@ export function CreateProjectDialog({ open, onOpenChange, onCreate }: CreateProj
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProjectCreateResult | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,20 +87,12 @@ export function CreateProjectDialog({ open, onOpenChange, onCreate }: CreateProj
     }
   };
 
-  const handleCopy = async () => {
-    if (!result) return;
-    await navigator.clipboard.writeText(result.apiKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleClose = () => {
     setStep("form");
     setName("");
     setEnvironment("PRODUCTION");
     setError(null);
     setResult(null);
-    setCopied(false);
     onOpenChange(false);
   };
 
@@ -131,33 +155,23 @@ export function CreateProjectDialog({ open, onOpenChange, onCreate }: CreateProj
             <div className="space-y-4">
               <Alert className="border-green-800 bg-green-950/30">
                 <AlertTitle className="text-xs uppercase tracking-widest text-green-400 font-bold">
-                  API key — copy now, won&apos;t be shown again
+                  Save your keys — won&apos;t be shown again
                 </AlertTitle>
-                <AlertDescription className="mt-2 flex items-center gap-2">
-                  <Input
-                    readOnly
-                    value={result?.apiKey ?? ""}
-                    className="font-mono text-xs bg-green-950/50 border-green-800 text-green-300"
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0 border-green-800 text-green-400 hover:bg-green-950/50"
-                    onClick={() => void handleCopy()}
-                  >
-                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  </Button>
+                <AlertDescription className="mt-3 space-y-3">
+                  <CopyableKeyField label="Publishable Key (SDK / client-side)" value={result?.publishableKey ?? ""} />
+                  <CopyableKeyField label="Secret Key (server-side only)" value={result?.secretKey ?? ""} />
                 </AlertDescription>
               </Alert>
-              <p className="text-xs text-muted-foreground">
-                Use this key with the{" "}
-                <code className="text-primary/80 bg-background px-1 py-0.5 rounded border border-border">
-                  X-Api-Key
-                </code>{" "}
-                header when ingesting events.
-              </p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>
+                  Use the <span className="font-semibold text-foreground">publishable key</span> in{" "}
+                  <code className="text-primary/80 bg-background px-1 py-0.5 rounded border border-border">@vigilry/node</code>{" "}
+                  and any client-side code.
+                </p>
+                <p>
+                  Use the <span className="font-semibold text-foreground">secret key</span> only in server environments for management API calls.
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={handleClose}>
