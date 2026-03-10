@@ -1,7 +1,9 @@
+import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { User, Organization } from "@risk-engine/db";
 import { ConflictError, UnauthorizedError, BadRequestError, ForbiddenError } from "@risk-engine/http";
+import { sendEmail, buildVerifyEmail } from "@risk-engine/email";
 import type { AuthRepository } from "../repositories/auth.repository";
 import type { OrganizationRepository } from "../repositories/organization.repository";
 
@@ -24,12 +26,15 @@ export interface LoginInput {
 
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export class AuthService {
   constructor(
     private readonly userRepo: AuthRepository,
     private readonly orgRepo: OrganizationRepository,
     private readonly jwtSecret: string,
     private readonly signupDisabled: boolean = false,
+    private readonly dashboardUrl: string = "http://localhost:3000",
   ) {}
 
   get cookieMaxAge(): number {
@@ -40,11 +45,7 @@ export class AuthService {
     return jwt.sign(payload, this.jwtSecret, { expiresIn: "7d" });
   }
 
-  async signup(input: SignupInput): Promise<{
-    user: Pick<User, "id" | "email" | "name">;
-    organization: Pick<Organization, "id" | "name" | "plan">;
-    token: string;
-  }> {
+  async signup(input: SignupInput): Promise<{ message: string }> {
     if (this.signupDisabled) {
       throw new ForbiddenError("Signup is currently disabled");
     }
@@ -70,11 +71,53 @@ export class AuthService {
     const org = await this.orgRepo.create({ name: input.orgName });
     await this.orgRepo.addMember({ organizationId: org.id, userId: user.id, role: "OWNER" });
 
-    const token = this.sign({ userId: user.id, organizationId: org.id });
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MS);
+    await this.userRepo.createVerificationToken(user.id, tokenHash, expiresAt);
+
+    const verificationUrl = `${this.dashboardUrl}/verify-email?token=${rawToken}`;
+    const { subject, html } = buildVerifyEmail({ recipientName: user.name, verificationUrl });
+    await sendEmail({ to: user.email, subject, html });
+
+    return { message: "Check your email to verify your account" };
+  }
+
+  async verifyEmail(rawToken: string): Promise<{
+    user: Pick<User, "id" | "email" | "name">;
+    organization: Pick<Organization, "id" | "name" | "plan">;
+    token: string;
+  }> {
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const record = await this.userRepo.findVerificationToken(tokenHash);
+
+    if (!record) {
+      throw new BadRequestError("Invalid or expired verification link");
+    }
+
+    if (record.expiresAt < new Date()) {
+      await this.userRepo.deleteVerificationToken(record.id);
+      throw new BadRequestError("Verification link has expired");
+    }
+
+    await this.userRepo.markEmailVerified(record.userId);
+    await this.userRepo.deleteVerificationToken(record.id);
+
+    const user = await this.userRepo.findUserById(record.userId);
+    if (!user) throw new BadRequestError("User not found");
+
+    const membership = await this.orgRepo.findFirstMembership(user.id);
+    if (!membership) throw new BadRequestError("Organization not found");
+
+    const token = this.sign({ userId: user.id, organizationId: membership.org.id });
 
     return {
       user: { id: user.id, email: user.email, name: user.name },
-      organization: { id: org.id, name: org.name, plan: org.plan },
+      organization: {
+        id: membership.org.id,
+        name: membership.org.name,
+        plan: membership.org.plan,
+      },
       token,
     };
   }
@@ -89,6 +132,10 @@ export class AuthService {
 
     const valid = await bcrypt.compare(input.password, user.passwordHash);
     if (!valid) throw new UnauthorizedError("Invalid email or password");
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedError("Please verify your email before logging in");
+    }
 
     const membership = await this.orgRepo.findFirstMembership(user.id);
     if (!membership) throw new UnauthorizedError("User has no organization");

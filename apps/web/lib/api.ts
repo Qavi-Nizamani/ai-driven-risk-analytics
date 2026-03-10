@@ -63,6 +63,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    verifyEmail: (token: string) =>
+      request<{ user: SessionInfo["user"]; organization: SessionInfo["organization"] }>(
+        "/auth/verify-email",
+        { method: "POST", body: JSON.stringify({ token }) },
+      ),
     logout: () => request<void>("/auth/logout", { method: "POST" }),
   },
 

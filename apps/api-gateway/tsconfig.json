@@ -14,6 +14,7 @@
     { "path": "../../packages/events" },
     { "path": "../../packages/redis" },
     { "path": "../../packages/logger" },
-    { "path": "../../packages/utils" }
+    { "path": "../../packages/utils" },
+    { "path": "../../packages/email" }
   ]
 }

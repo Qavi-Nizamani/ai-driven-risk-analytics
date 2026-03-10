@@ -4,8 +4,7 @@ export interface SessionInfo {
 }
 
 export interface SignupResult {
-  organization: { id: string; name: string };
-  user: { id: string; email: string; name: string };
+  message: string;
 }
 
 export interface ProjectRow {

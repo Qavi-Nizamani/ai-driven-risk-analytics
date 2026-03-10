@@ -19,15 +19,19 @@ export class AuthController {
 
     const result = await this.authService.signup({ email, name, password, orgName });
 
+    res.status(201).json(result);
+  };
+
+  verifyEmail = async (req: Request, res: Response): Promise<void> => {
+    const { token } = req.body as { token: string };
+    const result = await this.authService.verifyEmail(token);
+
     res.cookie("session", result.token, {
       ...COOKIE_OPTIONS,
       maxAge: this.authService.cookieMaxAge,
     });
 
-    res.status(201).json({
-      user: result.user,
-      organization: result.organization,
-    });
+    res.json({ user: result.user, organization: result.organization });
   };
 
   login = async (req: Request, res: Response): Promise<void> => {

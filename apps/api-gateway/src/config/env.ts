@@ -47,3 +47,7 @@ export function getIngestionBaseUrl(): string {
 export function isSignupDisabled(): boolean {
   return process.env.SIGNUP_DISABLED === "true";
 }
+
+export function getDashboardUrl(): string {
+  return process.env.DASHBOARD_URL ?? "http://localhost:3000";
+}

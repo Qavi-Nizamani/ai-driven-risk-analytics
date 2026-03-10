@@ -5,6 +5,7 @@ import {
   text,
   jsonb,
   timestamp,
+  boolean,
   index,
   primaryKey,
 } from "drizzle-orm/pg-core";
@@ -29,6 +30,7 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 256 }).notNull().unique(),
   name: varchar("name", { length: 256 }).notNull(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  emailVerified: boolean("email_verified").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -187,6 +189,18 @@ export const incidentEvents = pgTable(
   ],
 );
 
+// ─── Email Verification Tokens ────────────────────────────────────────────────
+
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: varchar("token_hash", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ─── Inferred types ───────────────────────────────────────────────────────────
 
 export type Organization = typeof organizations.$inferSelect;
@@ -207,3 +221,5 @@ export type IncidentEvent = typeof incidentEvents.$inferSelect;
 export type NewIncidentEvent = typeof incidentEvents.$inferInsert;
 export type WebhookEndpoint = typeof webhookEndpoints.$inferSelect;
 export type NewWebhookEndpoint = typeof webhookEndpoints.$inferInsert;
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
+export type NewEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;

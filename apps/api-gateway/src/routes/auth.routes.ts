@@ -16,6 +16,10 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const verifyEmailSchema = z.object({
+  token: z.string().min(1),
+});
+
 export function createAuthRouter(
   ctrl: AuthController,
   authenticate: RequestHandler,
@@ -24,6 +28,7 @@ export function createAuthRouter(
 
   router.post("/auth/signup", validate(signupSchema), asyncHandler(ctrl.signup));
   router.post("/auth/login", validate(loginSchema), asyncHandler(ctrl.login));
+  router.post("/auth/verify-email", validate(verifyEmailSchema), asyncHandler(ctrl.verifyEmail));
   router.post("/auth/logout", ctrl.logout);
   router.get("/auth/me", authenticate, ctrl.me);
 
