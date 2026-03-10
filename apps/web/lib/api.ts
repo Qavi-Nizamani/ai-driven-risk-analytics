@@ -68,6 +68,11 @@ export const api = {
         "/auth/verify-email",
         { method: "POST", body: JSON.stringify({ token }) },
       ),
+    resendVerification: (email: string) =>
+      request<{ message: string }>("/auth/resend-verification", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }),
     logout: () => request<void>("/auth/logout", { method: "POST" }),
   },
 

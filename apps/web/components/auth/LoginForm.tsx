@@ -28,6 +28,8 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const UNVERIFIED_ERROR = "Please verify your email before logging in";
+
 export function LoginForm() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -103,6 +105,14 @@ export function LoginForm() {
           {serverError && (
             <Alert variant="destructive">
               <AlertDescription>{serverError}</AlertDescription>
+              {serverError === UNVERIFIED_ERROR && (
+                <Link
+                  href={`/verify-email?email=${encodeURIComponent(form.getValues("email"))}`}
+                  className="block mt-2 text-xs underline underline-offset-4 text-destructive-foreground hover:opacity-80"
+                >
+                  Resend verification email
+                </Link>
+              )}
             </Alert>
           )}
 

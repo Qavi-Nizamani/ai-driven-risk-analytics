@@ -25,8 +25,8 @@ export interface LoginInput {
 }
 
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute
 
 export class AuthService {
   constructor(
@@ -120,6 +120,33 @@ export class AuthService {
       },
       token,
     };
+  }
+
+  async resendVerification(email: string): Promise<{ message: string }> {
+    const user = await this.userRepo.findUserByEmail(email);
+
+    if (!user) throw new BadRequestError("No account found with this email");
+    if (user.emailVerified) throw new BadRequestError("This email is already verified");
+
+    const existing = await this.userRepo.findVerificationTokenByUserId(user.id);
+    if (existing) {
+      const elapsed = Date.now() - existing.createdAt.getTime();
+      if (elapsed < RESEND_COOLDOWN_MS) {
+        const waitSeconds = Math.ceil((RESEND_COOLDOWN_MS - elapsed) / 1000);
+        throw new BadRequestError(`Please wait ${waitSeconds} seconds before requesting another email`);
+      }
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MS);
+    await this.userRepo.createVerificationToken(user.id, tokenHash, expiresAt);
+
+    const verificationUrl = `${this.dashboardUrl}/verify-email?token=${rawToken}`;
+    const { subject, html } = buildVerifyEmail({ recipientName: user.name, verificationUrl });
+    await sendEmail({ to: user.email, subject, html });
+
+    return { message: "Verification email resent" };
   }
 
   async login(input: LoginInput): Promise<{

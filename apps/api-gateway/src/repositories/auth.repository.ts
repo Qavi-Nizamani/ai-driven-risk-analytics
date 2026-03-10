@@ -66,6 +66,15 @@ export class AuthRepository {
     return row ?? null;
   }
 
+  async findVerificationTokenByUserId(userId: string): Promise<EmailVerificationToken | null> {
+    const [row] = await this.db
+      .select()
+      .from(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.userId, userId))
+      .limit(1);
+    return row ?? null;
+  }
+
   async deleteVerificationToken(id: string): Promise<void> {
     await this.db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.id, id));
   }

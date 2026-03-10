@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthCard } from "@/components/layout/AuthCard";
+import { ResendVerificationForm } from "@/components/auth/ResendVerificationForm";
 import { api, ApiError } from "@/lib/api";
 
 const schema = z
@@ -38,6 +39,7 @@ type FormValues = z.infer<typeof schema>;
 export function SignupForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -59,6 +61,7 @@ export function SignupForm() {
         orgName: values.orgName,
         password: values.password,
       });
+      setSubmittedEmail(values.email);
       setEmailSent(true);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -75,6 +78,9 @@ export function SignupForm() {
         <p className="text-sm text-muted-foreground text-center">
           We sent a verification link to your email address. Click it to activate your account and log in.
         </p>
+        <div className="mt-4">
+          <ResendVerificationForm defaultEmail={submittedEmail} />
+        </div>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Already verified?{" "}
           <Link href="/login" className="text-primary hover:text-primary/80 underline-offset-4 hover:underline">

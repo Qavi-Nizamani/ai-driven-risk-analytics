@@ -34,6 +34,12 @@ export class AuthController {
     res.json({ user: result.user, organization: result.organization });
   };
 
+  resendVerification = async (req: Request, res: Response): Promise<void> => {
+    const { email } = req.body as { email: string };
+    const result = await this.authService.resendVerification(email);
+    res.json(result);
+  };
+
   login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body as { email: string; password: string };
 
