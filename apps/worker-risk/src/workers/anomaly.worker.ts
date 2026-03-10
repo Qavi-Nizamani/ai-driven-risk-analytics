@@ -3,13 +3,14 @@ import { Worker } from "bullmq";
 import { createLogger } from "@risk-engine/logger";
 import { getBullMqConnectionOptions, getRedisClient } from "@risk-engine/redis";
 import { EventSeverity, IncidentSeverity, IncidentStatus } from "@risk-engine/types";
-import { getDb, events, incidents, incidentEvents } from "@risk-engine/db";
+import { getDb, events, incidents, incidentEvents, organizationMembers, users, organizations } from "@risk-engine/db";
 import {
   emitAnomalyDetected,
   emitIncidentCreated,
   emitIncidentUpdated,
   type RedisStreamClient,
 } from "@risk-engine/events";
+import { sendEmail, buildIncidentCreatedEmail } from "@risk-engine/email";
 import { getDatabaseUrl, getAnomalyQueueName } from "../config/env";
 import {
   ACTIVE_INCIDENT_TTL_SECONDS,
@@ -53,6 +54,48 @@ async function getIncidentStats(
       : 0;
 
   return { totalCount, durationSeconds };
+}
+
+async function notifyOrgOwner(
+  db: ReturnType<typeof getDb>,
+  opts: {
+    organizationId: string;
+    projectId: string;
+    incidentId: string;
+    severity: string;
+    summary: string;
+    createdAt: string;
+  },
+): Promise<void> {
+  const owner = await db
+    .select({ email: users.email, name: users.name, orgName: organizations.name })
+    .from(organizationMembers)
+    .innerJoin(users, eq(organizationMembers.userId, users.id))
+    .innerJoin(organizations, eq(organizationMembers.organizationId, organizations.id))
+    .where(
+      and(
+        eq(organizationMembers.organizationId, opts.organizationId),
+        eq(organizationMembers.role, "OWNER"),
+      ),
+    )
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!owner) return;
+
+  const dashboardUrl = `${process.env.DASHBOARD_URL ?? "http://localhost:3000"}/dashboard/projects/${opts.projectId}`;
+  const { subject, html } = buildIncidentCreatedEmail({
+    recipientName: owner.name,
+    incidentId: opts.incidentId,
+    severity: opts.severity,
+    summary: opts.summary,
+    organizationName: owner.orgName,
+    projectId: opts.projectId,
+    createdAt: opts.createdAt,
+    dashboardUrl,
+  });
+
+  await sendEmail({ to: owner.email, subject, html });
 }
 
 export async function startAnomalyWorker(): Promise<void> {
@@ -303,6 +346,16 @@ export async function startAnomalyWorker(): Promise<void> {
         projectId,
         status: incident.status as IncidentStatus,
         severity: incident.severity as EventSeverity,
+        summary: incident.summary,
+        createdAt: incidentCreatedAt,
+      });
+
+      // Notify the org owner — fire-and-forget (sendEmail never throws)
+      void notifyOrgOwner(db, {
+        organizationId,
+        projectId,
+        incidentId: incident.id,
+        severity: incident.severity,
         summary: incident.summary,
         createdAt: incidentCreatedAt,
       });
