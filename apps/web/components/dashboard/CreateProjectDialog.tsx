@@ -172,6 +172,26 @@ export function CreateProjectDialog({ open, onOpenChange, onCreate }: CreateProj
                   Use the <span className="font-semibold text-foreground">secret key</span> only in server environments for management API calls.
                 </p>
               </div>
+              <div className="rounded-md border border-border bg-background p-3 space-y-2">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+                  Next step
+                </p>
+                <pre className="text-[11px] font-mono text-foreground/70 overflow-x-auto leading-relaxed">
+{`npm install @vigilry/node
+
+import vigilry from "@vigilry/node";
+vigilry.init({ apiKey: "pk_..." });
+vigilry.captureError(err);`}
+                </pre>
+                <a
+                  href="https://developers.vigilry.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  SDK quickstart docs →
+                </a>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={handleClose}>

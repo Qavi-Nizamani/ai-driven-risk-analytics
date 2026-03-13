@@ -19,6 +19,53 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import type { EventRow, IncidentRow, ProjectRow } from "@/types/session";
 
+function EventsQuickstart({ hasKey }: { hasKey: boolean }) {
+  return (
+    <div className="rounded-md border border-border bg-card p-6 space-y-4 max-w-xl">
+      <div>
+        <p className="text-sm font-bold uppercase tracking-widest">Send your first event</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          No events yet. Install the SDK and send one to see it appear here in real time.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">1 — Install</p>
+        <pre className="text-xs font-mono bg-background border border-border rounded px-3 py-2 overflow-x-auto">
+          <span className="text-muted-foreground">$</span> npm install @vigilry/node
+        </pre>
+      </div>
+      <div className="space-y-2">
+        <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">2 — Initialise</p>
+        <pre className="text-xs font-mono bg-background border border-border rounded px-3 py-2 overflow-x-auto leading-relaxed text-foreground/80">
+{`import vigilry from "@vigilry/node";
+
+vigilry.init({
+  apiKey: "${hasKey ? "<your publishable key from API Keys tab>" : "pk_live_..."}",
+});`}
+        </pre>
+      </div>
+      <div className="space-y-2">
+        <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">3 — Capture</p>
+        <pre className="text-xs font-mono bg-background border border-border rounded px-3 py-2 overflow-x-auto leading-relaxed text-foreground/80">
+{`try {
+  // your code
+} catch (err) {
+  vigilry.captureError(err);
+}`}
+        </pre>
+      </div>
+      <a
+        href="https://developers.vigilry.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+      >
+        Full SDK reference and examples →
+      </a>
+    </div>
+  );
+}
+
 interface ProjectDetailPageProps {
   projectId: string;
 }
@@ -120,7 +167,11 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
         </div>
 
         <TabsContent value="events" className="mt-4">
-          <EventsTable events={events} />
+          {events.length === 0 ? (
+            <EventsQuickstart hasKey={keys.some((k) => k.type === "publishable")} />
+          ) : (
+            <EventsTable events={events} />
+          )}
         </TabsContent>
 
         <TabsContent value="incidents" className="mt-4">
